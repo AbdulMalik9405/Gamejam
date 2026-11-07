@@ -2,32 +2,38 @@ using Godot;
 
 namespace Gamejam.Gameplay;
 
-// Holds the selected hotbar item in front of the local player's camera and animates it: it rises into view when
-// equipped, drops out of view when put away, and `inspect` (Y) twirls it like the CS karambit inspect. It also
-// sways a little: it trails behind when you turn and bobs as you walk.
-// An item with a child Node3D named "Grip" is placed so that the grip sits at the hand, at the grip's angle (move the
-// grip to move the item in view); others keep the block pose.
+// Shows the explorer's arm (art/explorer_arm.glb) holding the selected hotbar item in front of the local player's
+// camera, and animates both: they rise into view when an item is equipped, drop out of view when it's put away, and
+// `inspect` (Y) twirls the item like the CS karambit inspect. They also sway: trail behind when you turn, bob as you
+// walk. An item with a child Node3D named "Grip" is held so that its grip sits in the arm's GripPoint, at the grip's
+// angle (move or turn the grip to change how the item sits in the hand); others are held in front of the palm.
 public partial class HeldItemView : Node
 {
-	// Where the hand is, in camera space (right, up, forward is -Z).
+	// Its origin is the first-person camera; it holds RightArm_FP, whose child GripPoint is where items go.
+	[Export] public string ArmScene { get; set; } = "res://art/explorer_arm.glb";
+	// Where the hand is, in camera space (right, up, forward is -Z), when the arm model is missing.
 	[Export] public Vector3 HoldOffset { get; set; } = new(0.25f, -0.2f, -0.6f);
+	// Nudges the whole arm from where the model puts it, in camera space.
+	[Export] public Vector3 ArmOffset { get; set; } = new(0f, -0.05f, -0.07f);
+	// Where an item without a Grip sits, relative to the arm's GripPoint (in front of the palm).
+	[Export] public Vector3 PalmOffset { get; set; } = new(0f, 0.02f, -0.18f);
 	[Export] public float EquipTime { get; set; } = 0.3f;
 	[Export] public float UnequipTime { get; set; } = 0.2f;
-	// Where a put-away item sits relative to the hand, and how far it tips forward on the way down.
-	[Export] public Vector3 LoweredOffset { get; set; } = new(0.05f, -0.5f, 0.15f);
-	[Export] public float LoweredTiltDegrees { get; set; } = 60f;
+	// Where a put-away arm sits relative to its resting pose, and how far it swings down at the shoulder.
+	[Export] public Vector3 LoweredOffset { get; set; } = new(0.05f, -0.45f, 0.1f);
+	[Export] public float LoweredTiltDegrees { get; set; } = 25f;
 	[Export] public float InspectTime { get; set; } = 3.0f;
 	// Inspect pose relative to the hand: pulled toward the middle of the screen and a little closer.
-	[Export] public Vector3 InspectOffset { get; set; } = new(-0.18f, 0.06f, 0.15f);
-	[Export] public float InspectTiltDegrees { get; set; } = 25f;
-	// The twirl: how many full spins, and the axis in camera space (mostly toward you, so it spins flat across the
-	// screen around the hand).
+	[Export] public Vector3 InspectOffset { get; set; } = new(-0.14f, 0.05f, 0.08f);
+	[Export] public float InspectTiltDegrees { get; set; } = 20f;
+	// The twirl: how many full spins of the item in the fist, and the axis in camera space (mostly toward you, so it
+	// spins flat across the screen).
 	[Export] public int InspectSpins { get; set; } = 2;
 	[Export] public Vector3 InspectSpinAxis { get; set; } = new(0.3f, 0f, 1f);
-	// After the twirl the item is tipped toward you by this much and turned to show its side.
+	// After the twirl the hand tips toward you by this much and the item turns to show its side.
 	[Export] public float InspectShowTiltDegrees { get; set; } = 20f;
 	[Export] public float InspectShowTurnDegrees { get; set; } = 90f;
-	// How much of a turn the item trails behind, how fast it catches up, and the most it can lag.
+	// How much of a turn the arm trails behind, how fast it catches up, and the most it can lag.
 	[Export] public float LookSwayAmount { get; set; } = 0.8f;
 	[Export] public float LookSwaySpeed { get; set; } = 8f;
 	[Export] public float MaxLookSwayDegrees { get; set; } = 9f;
@@ -51,11 +57,15 @@ public partial class HeldItemView : Node
 	private Inventory _inventory;
 	private Pickup _shown;
 	private Node3D _grip;
+	private Node3D _arm;
+	// The arm's and the hand's resting poses in camera space, read from the model.
+	private Transform3D _armRest;
+	private Transform3D _gripRest;
 	// 0 = out of view, 1 = in the hand.
 	private float _raise;
 	// Seconds into the inspect; negative when not inspecting.
 	private float _inspect = -1f;
-	// Where the camera pointed a moment ago; the item leans toward it.
+	// Where the camera pointed a moment ago; the arm leans toward it.
 	private Quaternion _lagView;
 	private bool _lagReady;
 	private float _walkPhase;
@@ -63,8 +73,9 @@ public partial class HeldItemView : Node
 
 	public override void _Ready()
 	{
-		// After the camera has moved this frame (mouse look, camera sway), so the item doesn't trail behind it.
+		// After the camera has moved this frame (mouse look, camera sway), so the arm doesn't trail behind it.
 		ProcessPriority = 100;
+		BuildArm();
 	}
 
 	public void Setup(CharacterBody3D body, Camera3D camera, Inventory inventory)
@@ -124,9 +135,57 @@ public partial class HeldItemView : Node
 			}
 		}
 
-		Transform3D sway = Sway(dt);
+		// Everything below is in camera space and pivots on the hand.
+		Transform3D hand = Sway(dt) * AnimatedHand();
+		Transform3D view = _camera.GlobalTransform;
+		if (_arm != null)
+		{
+			_arm.Visible = _shown != null;
+			if (_shown != null)
+				_arm.GlobalTransform = view * hand * _armRest;
+		}
 		if (_shown != null)
-			_shown.GlobalTransform = _camera.GlobalTransform * sway * AnimatedHand() * ItemInHand() * InspectTurn();
+			_shown.GlobalTransform = view * hand * Twirl() * ItemInHand() * InspectTurn();
+	}
+
+	private void BuildArm()
+	{
+		_gripRest = new Transform3D(Basis.Identity, HoldOffset);
+		if (!ResourceLoader.Exists(ArmScene))
+		{
+			GD.PushWarning($"HeldItemView: {ArmScene} not found, holding items without an arm.");
+			return;
+		}
+
+		Node root = GD.Load<PackedScene>(ArmScene).Instantiate();
+		var arm = root.FindChild("RightArm_FP", true, false) as Node3D;
+		var grip = arm?.FindChild("GripPoint", true, false) as Node3D;
+		if (arm == null || grip == null)
+		{
+			GD.PushWarning($"HeldItemView: {ArmScene} has no RightArm_FP with a GripPoint, holding items without an arm.");
+			root.Free();
+			return;
+		}
+
+		_armRest = new Transform3D(Basis.Identity, ArmOffset) * arm.Transform;
+		Transform3D gripInArm = Transform3D.Identity;
+		for (Node node = grip; node != arm; node = node.GetParent())
+			gripInArm = ((Node3D)node).Transform * gripInArm;
+		_gripRest = _armRest * gripInArm;
+
+		arm.GetParent().RemoveChild(arm);
+		root.Free();
+		// The preview handle only shows the artist how items sit in the hand.
+		foreach (Node preview in arm.FindChildren("Preview*", "", true, false))
+			preview.Free();
+		// Right in front of the camera, so a shadow would cover half the screen.
+		foreach (Node mesh in arm.FindChildren("*", "MeshInstance3D", true, false))
+			((MeshInstance3D)mesh).CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+
+		arm.Name = "Arm";
+		arm.Visible = false;
+		AddChild(arm);
+		_arm = arm;
 	}
 
 	private void Show(Pickup item)
@@ -167,8 +226,15 @@ public partial class HeldItemView : Node
 		return false;
 	}
 
-	// Trails behind mouse look and bobs with each step, pivoting on the hand. Runs even with empty hands so the
-	// next item doesn't start with a jolt.
+	// A rotation and offset in camera space, applied around the hand.
+	private Transform3D AroundHand(Basis rotation, Vector3 offset)
+	{
+		Vector3 pivot = _gripRest.Origin;
+		return new Transform3D(rotation, pivot + offset) * new Transform3D(Basis.Identity, -pivot);
+	}
+
+	// Trails behind mouse look and bobs with each step. Runs even with empty hands so the next item doesn't start
+	// with a jolt.
 	private Transform3D Sway(float dt)
 	{
 		Quaternion view = _camera.GlobalBasis.GetRotationQuaternion();
@@ -197,34 +263,42 @@ public partial class HeldItemView : Node
 			bob = new Vector3(sin * WalkBob, -Mathf.Abs(sin) * WalkBob * 0.8f, 0f) * _walkAmount;
 		}
 
-		return new Transform3D(new Basis(trail), HoldOffset + bob) * new Transform3D(Basis.Identity, -HoldOffset);
+		return AroundHand(new Basis(trail), bob);
 	}
 
-	// The hand's animated offset from its resting pose: a transform in camera space that pivots on the hand.
+	// Equip / put-away and the inspect's hand movement. Moves the arm and the item together.
 	private Transform3D AnimatedHand()
 	{
 		float lowered = 1f - EaseOut(_raise);
 		Vector3 offset = LoweredOffset * lowered;
-		var rotation = new Basis(Vector3.Right, -Mathf.DegToRad(LoweredTiltDegrees) * lowered);
+		// Positive tips the item's top toward you, so the forearm behind the hand swings down out of view.
+		var rotation = new Basis(Vector3.Right, Mathf.DegToRad(LoweredTiltDegrees) * lowered);
 
 		if (_inspect >= 0f)
 		{
 			float p = _inspect / InspectTime;
 			float weight = Mathf.SmoothStep(0f, RaiseEnd, p) * (1f - Mathf.SmoothStep(ShowEnd, 1f, p));
 			offset += InspectOffset * weight;
-			rotation *= new Basis(InspectSpinAxis.Normalized(), TwirlAngle(p))
-				* new Basis(Vector3.Back, Mathf.DegToRad(InspectTiltDegrees) * weight)
+			rotation *= new Basis(Vector3.Back, Mathf.DegToRad(InspectTiltDegrees) * weight)
 				* new Basis(Vector3.Right, Mathf.DegToRad(InspectShowTiltDegrees) * ShowAmount(p));
 		}
 
-		return new Transform3D(rotation, HoldOffset + offset) * new Transform3D(Basis.Identity, -HoldOffset);
+		return AroundHand(rotation, offset);
+	}
+
+	// The inspect's twirl: only the item spins, in the fist.
+	private Transform3D Twirl()
+	{
+		if (_inspect < 0f)
+			return Transform3D.Identity;
+		return AroundHand(new Basis(InspectSpinAxis.Normalized(), TwirlAngle(_inspect / InspectTime)), Vector3.Zero);
 	}
 
 	private Transform3D ItemInHand()
 	{
 		if (_grip != null)
-			return new Transform3D(Basis.Identity, HoldOffset) * _grip.Transform.AffineInverse();
-		return new Transform3D(BlockBasis, HoldOffset);
+			return _gripRest * _grip.Transform.AffineInverse();
+		return new Transform3D(BlockBasis, _gripRest * PalmOffset);
 	}
 
 	// Karambit-style: a short wind-up the other way, the spins (fast in the middle), then a small overshoot as it's
