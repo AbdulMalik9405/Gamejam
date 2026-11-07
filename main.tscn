@@ -52,6 +52,26 @@ omni_range = 12.0
 light_energy = 2.0
 omni_range = 12.0
 
+[node name="Prop_OilLamp_1_Light" parent="level1/Prop_OilLamp_1" index="1"]
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 1.5
+
+[node name="Prop_OilLamp_2_Light" parent="level1/Prop_OilLamp_2" index="1"]
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 1.5
+
+[node name="Prop_OilLamp_3_Light" parent="level1/Prop_OilLamp_3" index="1"]
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 1.5
+
+[node name="Prop_OilLamp_4_Light" parent="level1/Prop_OilLamp_4" index="1"]
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 1.5
+
 [node name="NicheLight_East" parent="level1" index="43"]
 light_energy = 1.0
 omni_range = 5.0
@@ -142,6 +162,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8482847, 2.1142697, 8.5430
 
 [node name="level1old" parent="." unique_id=87899872 groups=["era_present"] instance=ExtResource("6_level1old")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
+
+[node name="Ruin_LanternLight" parent="level1old/Ruin_Lantern" index="1"]
+light_energy = 1.0
+omni_range = 8.0
+omni_attenuation = 1.5
 
 [node name="Ruin_Bounce" parent="level1old" index="0" unique_id=991442242]
 light_energy = 1.0
