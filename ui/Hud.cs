@@ -3,15 +3,19 @@ using Godot;
 
 namespace Gamejam.UI;
 
-// Crosshair, interact prompt and the 9-slot hotbar for the local player. Only reads Player and Inventory.
+// Crosshair, interact prompt and the hotbar for the local player. Only reads Player and Inventory.
+// The hotbar shows only the slots holding something (each keeps its number key), inside a gold-edged cartouche.
 public partial class Hud : CanvasLayer
 {
 	[Export] public Texture2D GrabIcon { get; set; }
 	[Export] public float SlotSize { get; set; } = 64f;
 
-	private static readonly Color SlotBg = new Color(0.08f, 0.07f, 0.06f, 0.6f);
-	private static readonly Color SlotBorder = new Color(0.55f, 0.5f, 0.42f, 0.8f);
-	private static readonly Color SelectedBorder = new Color(1f, 0.85f, 0.45f, 1f);
+	// Basalt and sandstone-gold, like the tomb's painted bands.
+	private static readonly Color SlotBg = new Color(0.1f, 0.075f, 0.05f, 0.82f);
+	private static readonly Color SlotBorder = new Color(0.62f, 0.47f, 0.25f, 0.9f);
+	private static readonly Color SelectedBorder = new Color(1f, 0.82f, 0.4f, 1f);
+	private static readonly Color Gold = new Color(0.96f, 0.8f, 0.45f);
+	private static readonly Color Cream = new Color(0.98f, 0.92f, 0.76f);
 
 	private Player _player;
 	private Inventory _inventory;
@@ -25,10 +29,13 @@ public partial class Hud : CanvasLayer
 	private readonly TextureRect[] _icons = new TextureRect[Inventory.SlotCount];
 	private StyleBoxFlat _slotStyle;
 	private StyleBoxFlat _selectedStyle;
+	private Font _serif;
 
 	public override void _Ready()
 	{
 		GrabIcon ??= GD.Load<Texture2D>("res://placeholders/ui_hand_grab.svg");
+		// Whichever of these the computer has; all are carved-looking serifs.
+		_serif = new SystemFont { FontNames = new[] { "Cinzel", "Trajan Pro", "Georgia", "Times New Roman", "serif" } };
 		BuildCrosshair();
 		BuildHotbar();
 	}
@@ -89,10 +96,12 @@ public partial class Hud : CanvasLayer
 		{
 			Pickup item = _inventory.GetItem(i);
 			_icons[i].Texture = item?.Icon;
-			_slots[i].AddThemeStyleboxOverride("panel", i == _inventory.SelectedIndex ? _selectedStyle : _slotStyle);
+			_slots[i].Visible = item != null;
+			bool inHand = i == _inventory.SelectedIndex && !_inventory.Holstered;
+			_slots[i].AddThemeStyleboxOverride("panel", inHand ? _selectedStyle : _slotStyle);
 		}
 		Pickup selected = _inventory.SelectedItem;
-		_selectedName.Text = selected == null ? "" : selected.ItemName;
+		_selectedName.Text = selected == null ? "" : selected.ItemName.ToUpperInvariant();
 		// Only show the hotbar while carrying something.
 		_hotbar.Visible = HasAnyItem();
 	}
@@ -151,11 +160,11 @@ public partial class Hud : CanvasLayer
 	private void BuildHotbar()
 	{
 		_slotStyle = MakeSlotStyle(SlotBorder, 2);
-		_selectedStyle = MakeSlotStyle(SelectedBorder, 4);
+		_selectedStyle = MakeSlotStyle(SelectedBorder, 3, glow: true);
 
 		var column = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.End };
 		column.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
-		column.OffsetTop = -(SlotSize + 60f);
+		column.OffsetTop = -(SlotSize + 80f);
 		column.OffsetBottom = -16f;
 		column.AddThemeConstantOverride("separation", 6);
 		column.Visible = false;
@@ -163,12 +172,32 @@ public partial class Hud : CanvasLayer
 		_hotbar = column;
 
 		_selectedName = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, HorizontalAlignment = HorizontalAlignment.Center };
-		AddOutline(_selectedName, 18);
+		AddOutline(_selectedName, 20);
+		_selectedName.AddThemeFontOverride("font", new FontVariation { BaseFont = _serif, SpacingGlyph = 3 });
+		_selectedName.AddThemeColorOverride("font_color", Cream);
 		column.AddChild(_selectedName);
 
+		// The cartouche: a rounded, gold-edged frame around the slots, sized to the ones shown.
+		var cartouche = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter };
+		var frame = new StyleBoxFlat
+		{
+			BgColor = new Color(0.06f, 0.045f, 0.03f, 0.55f),
+			BorderColor = new Color(0.78f, 0.6f, 0.3f, 0.95f),
+			ShadowColor = new Color(0f, 0f, 0f, 0.35f),
+			ShadowSize = 6,
+		};
+		frame.SetBorderWidthAll(2);
+		frame.SetCornerRadiusAll(28);
+		frame.ContentMarginLeft = 18;
+		frame.ContentMarginRight = 18;
+		frame.ContentMarginTop = 7;
+		frame.ContentMarginBottom = 7;
+		cartouche.AddThemeStyleboxOverride("panel", frame);
+		column.AddChild(cartouche);
+
 		var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.Center };
-		row.AddThemeConstantOverride("separation", 4);
-		column.AddChild(row);
+		row.AddThemeConstantOverride("separation", 8);
+		cartouche.AddChild(row);
 
 		for (int i = 0; i < Inventory.SlotCount; i++)
 		{
@@ -191,7 +220,9 @@ public partial class Hud : CanvasLayer
 				SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
 				SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
 			};
-			AddOutline(number, 12);
+			AddOutline(number, 13);
+			number.AddThemeFontOverride("font", _serif);
+			number.AddThemeColorOverride("font_color", Gold);
 			slot.AddChild(number);
 
 			_slots[i] = slot;
@@ -199,12 +230,18 @@ public partial class Hud : CanvasLayer
 		}
 	}
 
-	private static StyleBoxFlat MakeSlotStyle(Color border, int borderWidth)
+	private static StyleBoxFlat MakeSlotStyle(Color border, int borderWidth, bool glow = false)
 	{
 		var style = new StyleBoxFlat { BgColor = SlotBg, BorderColor = border };
 		style.SetBorderWidthAll(borderWidth);
-		style.SetCornerRadiusAll(6);
-		style.SetContentMarginAll(6);
+		style.SetCornerRadiusAll(3);
+		style.SetContentMarginAll(7);
+		// The item in hand glows softly gold.
+		if (glow)
+		{
+			style.ShadowColor = new Color(1f, 0.75f, 0.3f, 0.45f);
+			style.ShadowSize = 9;
+		}
 		return style;
 	}
 

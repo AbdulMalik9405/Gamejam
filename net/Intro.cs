@@ -56,6 +56,8 @@ public partial class Intro : Node
 	// Drives the sway; never reset, so the lobby sway flows straight into the intro.
 	private float _clock;
 	private bool _swapped;
+	// Testing: `--skip-intro` drops each player straight into their room.
+	private bool _skip;
 
 	public override void _Ready()
 	{
@@ -64,6 +66,7 @@ public partial class Intro : Node
 		_players = GetNodeOrNull<Node3D>("../Players");
 		Build();
 		GameState.Instance.GameStarted += OnGameStarted;
+		_skip = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--skip-intro") >= 0;
 
 		_baseView = new Transform3D(Basis.Identity, CameraPosition).LookingAt(LookTarget, Vector3.Up);
 		_camera.GlobalTransform = _baseView;
@@ -154,6 +157,11 @@ public partial class Intro : Node
 		_swapped = false;
 		_time = 0f;
 		_phase = Phase.Playing;
+		if (_skip)
+		{
+			SwapToPlayer();
+			Finish();
+		}
 	}
 
 	private void UpdateCamera(float t, float rupture)

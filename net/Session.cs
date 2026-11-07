@@ -5,7 +5,8 @@ using Godot;
 namespace Gamejam.Net;
 
 // Hosts or joins a 2-player game and spawns each player into their era's map.
-// Root of net/Game.tscn. Test shortcut: run with user args `--host`, `--host-past` or `--join=<ip>`.
+// Root of net/Game.tscn. Test shortcuts: run with user args `--host`, `--host-past` or `--join=<ip>`, or `--solo` /
+// `--solo-past` to play alone (no partner needed), optionally with `--skip-intro` (net/Intro.cs).
 public partial class Session : Node
 {
 	public const int Port = 7777;
@@ -219,6 +220,15 @@ public partial class Session : Node
 			GameState.Instance.TriggerEscape();
 	}
 
+	// Testing without a partner: hosts as usual, then spawns the local player and starts right away.
+	private void StartSolo(Era era)
+	{
+		GameState.Instance.Solo = true;
+		Host(era);
+		if (Multiplayer.MultiplayerPeer != null)
+			Spawn(Multiplayer.GetUniqueId(), era);
+	}
+
 	private void HandleCommandLine()
 	{
 		foreach (string arg in OS.GetCmdlineUserArgs())
@@ -229,6 +239,8 @@ public partial class Session : Node
 				Host(Era.Past);
 			else if (arg.StartsWith("--join"))
 				Join(arg.Contains('=') ? arg[(arg.IndexOf('=') + 1)..] : "127.0.0.1");
+			else if (arg == "--solo" || arg == "--solo-past")
+				StartSolo(arg == "--solo" ? Era.Present : Era.Past);
 		}
 	}
 }

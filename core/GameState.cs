@@ -22,6 +22,8 @@ public partial class GameState : Node
 	public IReadOnlyDictionary<long, PlayerInfo> Players => _players;
 	public Era LocalEra => _players.TryGetValue(Multiplayer.GetUniqueId(), out PlayerInfo info) ? info.Era : Era.Present;
 	public bool IsRunning { get; private set; }
+	// Testing: the game starts with just the local player (net/Session.cs `--solo`).
+	public bool Solo { get; set; }
 	public double ElapsedSeconds { get; private set; }
 
 	private readonly Dictionary<long, PlayerInfo> _players = new();
@@ -81,7 +83,7 @@ public partial class GameState : Node
 		EmitSignal(SignalName.PlayerJoined, id);
 		EmitSignal(SignalName.EraAssigned, id, Variant.From(era));
 
-		if (!IsRunning && _players.Count == PlayerCount)
+		if (!IsRunning && _players.Count == (Solo ? 1 : PlayerCount))
 		{
 			IsRunning = true;
 			ElapsedSeconds = 0;

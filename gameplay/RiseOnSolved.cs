@@ -14,6 +14,9 @@ public partial class RiseOnSolved : Node
 	[Export] public float Duration { get; set; } = 1.5f;
 	// Played at Target through Events.PlaySfx. Empty = no sound.
 	[Export] public string SfxName { get; set; } = "";
+	// The solver's view rumbles, cuts to Target as it rises and glows, then returns (gameplay/RevealCinematic.cs).
+	[Export] public bool PlayCinematic { get; set; } = true;
+	[Export] public Color GlowColor { get; set; } = new Color(1f, 0.78f, 0.3f);
 
 	private Vector3 _endPosition;
 	private uint _layer;
@@ -70,6 +73,15 @@ public partial class RiseOnSolved : Node
 		if (SfxName != "" && Events.Instance != null)
 			Events.Instance.EmitSignal(Events.SignalName.PlaySfx, SfxName, Target.GlobalPosition);
 
+		// The cutscene starts the rise itself, once the view is on Target.
+		Vector3 end = Target.GetParent() is Node3D parent ? parent.GlobalTransform * _endPosition : _endPosition;
+		if (PlayCinematic && RevealCinematic.Play(this, Target, end + Vector3.Up * 0.03f, Duration, GlowColor, StartRise))
+			return;
+		StartRise();
+	}
+
+	private void StartRise()
+	{
 		Tween tween = CreateTween().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
 		tween.TweenProperty(Target, "position", _endPosition, Duration);
 		tween.TweenCallback(Callable.From(OnRiseFinished));
