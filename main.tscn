@@ -163,7 +163,7 @@ Slots = [NodePath("../level1old/Ruin_SymbolBlock_1_eye-rigid"), NodePath("../lev
 Answer = [NodePath("../level1old/Ruin_SymbolBlock_2_water-rigid"), NodePath("../level1old/Ruin_SymbolBlock_3_ankh-rigid"), NodePath("../level1old/Ruin_SymbolBlock_1_eye-rigid"), NodePath("../level1old/Ruin_SymbolBlock_4_scarab-rigid")]
 
 [node name="Key" parent="." instance=ExtResource("7_key")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 189.27, 0.035, 8.864056)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 189.29, 0.835, 8.864056)
 
 [node name="KeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
 script = ExtResource("9_riseonsolved")
