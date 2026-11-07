@@ -15,6 +15,9 @@ public partial class TorchPuzzle : Puzzle
 	[Export] public float TimeLimit { get; set; } = 30f;
 	[Export] public string StartMessage { get; set; } = "The flames will hold for thirty breaths...";
 	[Export] public string FailMessage { get; set; } = "The flames die out.";
+	// Lighting a torch that isn't in Answer fails straight away, so players can try again at once.
+	[Export] public string WrongMessage { get; set; } = "That fire never burned in the past...";
+	[Export] public float WrongDelay { get; set; } = 1.2f;
 
 	[Signal] public delegate void TimerStartedEventHandler(float seconds);
 	[Signal] public delegate void TimedOutEventHandler();
@@ -46,19 +49,39 @@ public partial class TorchPuzzle : Puzzle
 		TimeLeft -= delta;
 		if (TimeLeft > 0)
 			return;
+		Fail();
+		EmitSignal(SignalName.TimedOut);
+	}
 
+	private void Fail()
+	{
 		IsRunning = false;
 		SetProcess(false);
 		foreach (WallTorch torch in Torches)
 			torch?.Extinguish();
 		Message(FailMessage);
-		EmitSignal(SignalName.TimedOut);
+	}
+
+	private async void FailSoon()
+	{
+		// A moment to see the wrong flame catch before everything goes dark.
+		SetProcess(false);
+		await ToSignal(GetTree().CreateTimer(WrongDelay), SceneTreeTimer.SignalName.Timeout);
+		if (!IsSolved)
+			Fail();
 	}
 
 	private void OnLitChanged(WallTorch torch, bool lit)
 	{
 		if (IsSolved || !lit)
 			return;
+
+		if (!Answer.Contains(torch))
+		{
+			Message(WrongMessage);
+			FailSoon();
+			return;
+		}
 
 		if (!IsRunning)
 		{

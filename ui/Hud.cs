@@ -1,3 +1,4 @@
+using Gamejam.Core;
 using Gamejam.Gameplay;
 using Godot;
 
@@ -24,6 +25,8 @@ public partial class Hud : CanvasLayer
 	private TextureRect _grabHand;
 	private Label _prompt;
 	private Label _selectedName;
+	private Label _message;
+	private Tween _messageTween;
 	private Control _hotbar;
 	private readonly PanelContainer[] _slots = new PanelContainer[Inventory.SlotCount];
 	private readonly TextureRect[] _icons = new TextureRect[Inventory.SlotCount];
@@ -38,6 +41,9 @@ public partial class Hud : CanvasLayer
 		_serif = new SystemFont { FontNames = new[] { "Cinzel", "Trajan Pro", "Georgia", "Times New Roman", "serif" } };
 		BuildCrosshair();
 		BuildHotbar();
+		BuildMessage();
+		if (Events.Instance != null)
+			Events.Instance.ShowMessage += OnShowMessage;
 	}
 
 	public override void _Process(double delta)
@@ -47,7 +53,41 @@ public partial class Hud : CanvasLayer
 			FindLocalPlayer();
 	}
 
-	public override void _ExitTree() => Unbind();
+	public override void _ExitTree()
+	{
+		Unbind();
+		if (Events.Instance != null)
+			Events.Instance.ShowMessage -= OnShowMessage;
+	}
+
+	// Events.ShowMessage: fades in, stays for duration seconds, fades out. A new message replaces the old one.
+	private void OnShowMessage(string text, float duration)
+	{
+		_messageTween?.Kill();
+		_message.Text = text;
+		_message.Modulate = new Color(1f, 1f, 1f, 0f);
+		_messageTween = CreateTween();
+		_messageTween.TweenProperty(_message, "modulate:a", 1f, 0.3f);
+		_messageTween.TweenInterval(duration);
+		_messageTween.TweenProperty(_message, "modulate:a", 0f, 0.8f);
+	}
+
+	private void BuildMessage()
+	{
+		_message = new Label
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			Modulate = new Color(1f, 1f, 1f, 0f),
+		};
+		_message.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
+		_message.OffsetTop = 220f;
+		AddOutline(_message, 30);
+		_message.AddThemeFontOverride("font", _serif);
+		_message.AddThemeColorOverride("font_color", Cream);
+		_message.AddThemeConstantOverride("outline_size", 8);
+		AddChild(_message);
+	}
 
 	private void FindLocalPlayer()
 	{

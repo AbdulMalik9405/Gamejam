@@ -394,7 +394,7 @@ outline_modulate = Color(0.18, 0.1, 0.03, 1)
 text = "WHAT ONCE BURNED MUST BURN AGAIN
 
 Carry your flame to the walls and light
-only the fires the past keeps bright —
+only the fires the past keeps bright,
 not one too many, not one too few.
 In thirty breaths the dark creeps through."
 font_size = 36
@@ -408,7 +408,7 @@ outline_modulate = Color(0.18, 0.1, 0.03, 1)
 text = "WHAT ONCE BURNED MUST BURN AGAIN
 
 Carry your flame to the walls and light
-only the fires the past keeps bright —
+only the fires the past keeps bright,
 not one too many, not one too few.
 In thirty breaths the dark creeps through."
 font_size = 36
