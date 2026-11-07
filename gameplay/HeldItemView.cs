@@ -3,7 +3,8 @@ using Godot;
 namespace Gamejam.Gameplay;
 
 // Holds the selected hotbar item in front of the local player's camera and animates it: it rises into view when
-// equipped, drops out of view when put away, and `inspect` (Y) turns it around in front of you, CS-style.
+// equipped, drops out of view when put away, and `inspect` (Y) turns it around in front of you, CS-style. It also
+// sways a little: it trails behind when you turn and bobs as you walk.
 // An item with a child Node3D named "Grip" is placed so that the grip sits at the hand, at the grip's angle (move the
 // grip to move the item in view); others keep the block pose.
 public partial class HeldItemView : Node
@@ -19,11 +20,20 @@ public partial class HeldItemView : Node
 	// Inspect pose relative to the hand: pulled toward the middle of the screen and a little closer.
 	[Export] public Vector3 InspectOffset { get; set; } = new(-0.18f, 0.06f, 0.15f);
 	[Export] public float InspectTiltDegrees { get; set; } = 25f;
+	// How much of a turn the item trails behind, how fast it catches up, and the most it can lag.
+	[Export] public float LookSwayAmount { get; set; } = 0.5f;
+	[Export] public float LookSwaySpeed { get; set; } = 10f;
+	[Export] public float MaxLookSwayDegrees { get; set; } = 5f;
+	[Export] public float WalkBob { get; set; } = 0.012f;
+	[Export] public float StrideLength { get; set; } = 1.6f;
+	// Speed at which the walk bob reaches full strength (Player.MoveSpeed).
+	[Export] public float ReferenceSpeed { get; set; } = 4.5f;
 
 	private const string GripName = "Grip";
 	// Turns an item's +X face (the glyph side of the wall blocks) toward the camera.
 	private static readonly Basis BlockBasis = new(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0));
 
+	private CharacterBody3D _body;
 	private Camera3D _camera;
 	private Inventory _inventory;
 	private Pickup _shown;
@@ -32,6 +42,11 @@ public partial class HeldItemView : Node
 	private float _raise;
 	// Seconds into the inspect; negative when not inspecting.
 	private float _inspect = -1f;
+	// Where the camera pointed a moment ago; the item leans toward it.
+	private Quaternion _lagView;
+	private bool _lagReady;
+	private float _walkPhase;
+	private float _walkAmount;
 
 	public override void _Ready()
 	{
@@ -39,8 +54,9 @@ public partial class HeldItemView : Node
 		ProcessPriority = 100;
 	}
 
-	public void Setup(Camera3D camera, Inventory inventory)
+	public void Setup(CharacterBody3D body, Camera3D camera, Inventory inventory)
 	{
+		_body = body;
 		_camera = camera;
 		_inventory = inventory;
 		_inventory.Changed += OnInventoryChanged;
@@ -65,6 +81,7 @@ public partial class HeldItemView : Node
 		{
 			_raise = 0f;
 			_inspect = -1f;
+			_lagReady = false;
 		}
 	}
 
@@ -94,8 +111,9 @@ public partial class HeldItemView : Node
 			}
 		}
 
+		Transform3D sway = Sway(dt);
 		if (_shown != null)
-			_shown.GlobalTransform = _camera.GlobalTransform * AnimatedHand() * ItemInHand() * InspectSpin();
+			_shown.GlobalTransform = _camera.GlobalTransform * sway * AnimatedHand() * ItemInHand() * InspectSpin();
 	}
 
 	private void Show(Pickup item)
@@ -134,6 +152,39 @@ public partial class HeldItemView : Node
 				return true;
 		}
 		return false;
+	}
+
+	// Trails behind mouse look and bobs with each step, pivoting on the hand. Runs even with empty hands so the
+	// next item doesn't start with a jolt.
+	private Transform3D Sway(float dt)
+	{
+		Quaternion view = _camera.GlobalBasis.GetRotationQuaternion();
+		if (!_lagReady)
+		{
+			_lagView = view;
+			_lagReady = true;
+		}
+		_lagView = _lagView.Slerp(view, 1f - Mathf.Exp(-LookSwaySpeed * dt));
+		// The lagging view as seen from the camera, scaled down and capped.
+		Quaternion trail = Quaternion.Identity.Slerp(view.Inverse() * _lagView, LookSwayAmount);
+		float angle = trail.GetAngle();
+		float maxAngle = Mathf.DegToRad(MaxLookSwayDegrees);
+		if (angle > maxAngle)
+			trail = Quaternion.Identity.Slerp(trail, maxAngle / angle);
+
+		Vector3 bob = Vector3.Zero;
+		if (_body != null)
+		{
+			Vector3 velocity = _body.Velocity;
+			float speed = new Vector2(velocity.X, velocity.Z).Length();
+			float target = _body.IsOnFloor() ? Mathf.Clamp(speed / ReferenceSpeed, 0f, 1.3f) : 0f;
+			_walkAmount = Mathf.Lerp(_walkAmount, target, 1f - Mathf.Exp(-8f * dt));
+			_walkPhase = Mathf.Wrap(_walkPhase + speed * dt * Mathf.Pi / StrideLength, 0f, Mathf.Tau);
+			float sin = Mathf.Sin(_walkPhase);
+			bob = new Vector3(sin * WalkBob, -Mathf.Abs(sin) * WalkBob * 0.8f, 0f) * _walkAmount;
+		}
+
+		return new Transform3D(new Basis(trail), HoldOffset + bob) * new Transform3D(Basis.Identity, -HoldOffset);
 	}
 
 	// The hand's animated offset from its resting pose: a transform in camera space that pivots on the hand.

@@ -3,18 +3,18 @@ using Godot;
 
 namespace Gamejam.Gameplay;
 
-// A lit hand torch, copied at runtime from the past map's wall torch (art/level1.glb) so it follows the art.
+// A lit hand torch, built at runtime from art/torch.glb so it follows the art.
 // The present player starts with one in their first hotbar slot (net/Session.cs).
 public partial class Torch : Pickup
 {
-	[Export] public string SourceScene { get; set; } = "res://art/level1.glb";
-	// The wall torch to copy. Its wall bracket is left out.
-	[Export] public string SourceNode { get; set; } = "Torch_1";
+	[Export] public string SourceScene { get; set; } = "res://art/torch.glb";
+	// The node whose child meshes and light make up the torch (the file's preview floor is left out).
+	[Export] public string SourceNode { get; set; } = "Torch";
 	[Export] public float LightEnergy { get; set; } = 1.0f;
 	[Export] public float LightRange { get; set; } = 8f;
-	// The wall torch's flame and metal are made to be seen from across the room. Up close the flame glows
-	// pure white and the metal reflects nothing but black, so the hand copy tones both down.
-	[Export] public float FlameEmission { get; set; } = 3f;
+	// Right in front of the camera a bright flame glows pure white and metal reflects nothing but black,
+	// so the hand copy can tone both down.
+	[Export] public float FlameEmissionScale { get; set; } = 0.6f;
 	[Export] public float MaxMetallic { get; set; } = 0.3f;
 
 	private sealed class Model
@@ -77,7 +77,7 @@ public partial class Torch : Pickup
 		var material = (BaseMaterial3D)source.Duplicate();
 		material.Metallic = Mathf.Min(material.Metallic, MaxMetallic);
 		if (material.EmissionEnabled)
-			material.EmissionEnergyMultiplier = Mathf.Min(material.EmissionEnergyMultiplier, FlameEmission);
+			material.EmissionEnergyMultiplier *= FlameEmissionScale;
 		return material;
 	}
 

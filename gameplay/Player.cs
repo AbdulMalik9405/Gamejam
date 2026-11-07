@@ -82,7 +82,7 @@ public partial class Player : CharacterBody3D
 		_inventory.Changed += OnInventoryChanged;
 		_heldView = new HeldItemView { Name = "HeldItemView", HoldOffset = HoldOffset };
 		AddChild(_heldView);
-		_heldView.Setup(_camera, _inventory);
+		_heldView.Setup(this, _camera, _inventory);
 		EnsureDefaultInputActions();
 		Input.MouseMode = Input.MouseModeEnum.Captured;
 	}
