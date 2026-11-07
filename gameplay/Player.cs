@@ -8,129 +8,296 @@ namespace Gamejam.Gameplay;
 /// </summary>
 public partial class Player : CharacterBody3D
 {
-    [Signal] public delegate void InteractTargetChangedEventHandler(string prompt);
-    [Signal] public delegate void InteractedEventHandler(string interactableId);
-    [Signal] public delegate void PickedUpEventHandler(string itemName);
-    [Signal] public delegate void DroppedEventHandler(string itemName);
+	[Export] public float MoveSpeed { get; set; } = 4.5f;
+	[Export] public float SprintSpeed { get; set; } = 7f;
+	[Export] public float JumpVelocity { get; set; } = 4.5f;
+	[Export] public float Acceleration { get; set; } = 12f;
+	[Export] public float AirControl { get; set; } = 0.3f;
+	[Export] public float MouseSensitivity { get; set; } = 0.0025f;
+	[Export] public float MaxPitchDegrees { get; set; } = 89f;
+	[Export] public float InteractRange { get; set; } = 2.5f;
+	// Where the selected item sits, in camera space (right, up, forward is -Z).
+	[Export] public Vector3 HoldOffset { get; set; } = new Vector3(0.25f, -0.2f, -0.6f);
+	[Export] public float DropSpeed { get; set; } = 1.5f;
 
-    [Export] public float MoveSpeed { get; set; } = 4.5f;
-    [Export] public float SprintSpeed { get; set; } = 7f;
-    [Export] public float JumpVelocity { get; set; } = 4.5f;
-    [Export] public float Acceleration { get; set; } = 12f;
-    [Export] public float MouseSensitivity { get; set; } = 0.0025f;
-    [Export] public float MaxPitchDegrees { get; set; } = 89f;
+	[Signal] public delegate void InteractTargetChangedEventHandler(string prompt);
+	[Signal] public delegate void InteractedEventHandler(string interactableId);
+	[Signal] public delegate void PickedUpEventHandler(string itemName);
+	[Signal] public delegate void DroppedEventHandler(string itemName);
 
-    public long PeerId { get; private set; } = 1;
-    public string HeldItem { get; private set; } = "";
-    // TODO: add `public Era Era { get; }` once core/Era.cs is merged from net-core.
+	public long PeerId { get; private set; } = 1;
+	// TODO: add `public Era Era { get; }` once core/Era.cs is merged from net-core.
+	public string HeldItem => _inventory.SelectedItem == null ? "" : _inventory.SelectedItem.ItemName;
+	public Inventory Inventory => _inventory;
+	// True while the crosshair is on something F would pick up. Read by the HUD on InteractTargetChanged.
+	public bool IsLookingAtPickup { get; private set; }
 
-    private Camera3D _camera;
-    private MeshInstance3D _body;
-    private float _gravity;
-    private bool _isLocal;
+	private Camera3D _camera;
+	private MeshInstance3D _body;
+	private RayCast3D _interactRay;
+	private Inventory _inventory;
+	private float _gravity;
+	private bool _isLocal;
 
-    public override void _EnterTree()
-    {
-        // Spawned players are named after their peer id. A player dropped into a test scene
-        // by hand keeps the default authority (1), which is the local peer when offline.
-        if (long.TryParse(Name, out long id))
-        {
-            PeerId = id;
-            SetMultiplayerAuthority((int)id);
-        }
-    }
+	private Pickup _targetPickup;
+	private PickupSlot _targetSlot;
+	private Pickup _lastTargetPickup;
+	private PickupSlot _lastTargetSlot;
+	private Pickup _lastSelected;
+	private bool _lastFull;
+	private bool _promptDirty = true;
+	private string _prompt = "";
 
-    public override void _Ready()
-    {
-        AddToGroup("players");
-        _camera = GetNode<Camera3D>("Camera");
-        _body = GetNode<MeshInstance3D>("Body");
-        _gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
+	public override void _EnterTree()
+	{
+		// Spawned players are named after their peer id. A player dropped into a test scene
+		// by hand keeps the default authority (1), which is the local peer when offline.
+		if (long.TryParse(Name, out long id))
+		{
+			PeerId = id;
+			SetMultiplayerAuthority((int)id);
+		}
+	}
 
-        _isLocal = IsMultiplayerAuthority();
-        _camera.Current = _isLocal;
+	public override void _Ready()
+	{
+		AddToGroup("players");
+		_camera = GetNode<Camera3D>("Camera");
+		_body = GetNode<MeshInstance3D>("Body");
+		_interactRay = GetNode<RayCast3D>("Camera/InteractRay");
+		_inventory = GetNode<Inventory>("Inventory");
+		_interactRay.TargetPosition = new Vector3(0, 0, -InteractRange);
+		_interactRay.AddException(this);
+		_gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
 
-        if (_isLocal)
-        {
-            // Hide our own body from our camera but keep its shadow.
-            _body.CastShadow = GeometryInstance3D.ShadowCastingSetting.ShadowsOnly;
-            EnsureFallbackInputs();
-            Input.MouseMode = Input.MouseModeEnum.Captured;
-        }
-    }
+		_isLocal = IsMultiplayerAuthority();
+		_camera.Current = _isLocal;
+		_interactRay.Enabled = _isLocal;
+		if (!_isLocal)
+			return;
 
-    public override void _UnhandledInput(InputEvent @event)
-    {
-        if (!_isLocal)
-            return;
+		// Hide our own body from our camera but keep its shadow; the other player still sees it.
+		_body.CastShadow = GeometryInstance3D.ShadowCastingSetting.ShadowsOnly;
+		_inventory.Changed += OnInventoryChanged;
+		EnsureDefaultInputActions();
+		Input.MouseMode = Input.MouseModeEnum.Captured;
+	}
 
-        if (@event is InputEventMouseMotion motion && Input.MouseMode == Input.MouseModeEnum.Captured)
-        {
-            RotateY(-motion.Relative.X * MouseSensitivity);
-            Vector3 rot = _camera.Rotation;
-            float maxPitch = Mathf.DegToRad(MaxPitchDegrees);
-            rot.X = Mathf.Clamp(rot.X - motion.Relative.Y * MouseSensitivity, -maxPitch, maxPitch);
-            _camera.Rotation = rot;
-        }
-        else if (@event.IsActionPressed("pause"))
-        {
-            // Temporary until the pause menu (Agent C) owns mouse mode.
-            Input.MouseMode = Input.MouseMode == Input.MouseModeEnum.Captured
-                ? Input.MouseModeEnum.Visible
-                : Input.MouseModeEnum.Captured;
-        }
-        else if (@event is InputEventMouseButton { Pressed: true } && Input.MouseMode != Input.MouseModeEnum.Captured)
-        {
-            Input.MouseMode = Input.MouseModeEnum.Captured;
-        }
-    }
+	public override void _UnhandledInput(InputEvent @event)
+	{
+		if (!_isLocal)
+			return;
 
-    public override void _PhysicsProcess(double delta)
-    {
-        if (!_isLocal)
-            return;
+		if (@event.IsActionPressed("pause"))
+		{
+			Input.MouseMode = Input.MouseModeEnum.Visible;
+			return;
+		}
 
-        float dt = (float)delta;
-        Vector3 velocity = Velocity;
+		if (Input.MouseMode != Input.MouseModeEnum.Captured)
+		{
+			if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+				Input.MouseMode = Input.MouseModeEnum.Captured;
+			return;
+		}
 
-        if (!IsOnFloor())
-            velocity.Y -= _gravity * dt;
-        else if (Input.IsActionJustPressed("jump"))
-            velocity.Y = JumpVelocity;
+		if (@event.IsActionPressed("interact"))
+			Interact();
+		else if (@event.IsActionPressed("drop"))
+			DropSelected();
+		else if (@event.IsActionPressed("hotbar_next"))
+			_inventory.Cycle(1);
+		else if (@event.IsActionPressed("hotbar_prev"))
+			_inventory.Cycle(-1);
+		else if (@event is InputEventMouseMotion motion)
+			Look(motion.Relative);
+	}
 
-        Vector2 input = Input.GetVector("move_left", "move_right", "move_forward", "move_back");
-        Vector3 direction = (Transform.Basis * new Vector3(input.X, 0f, input.Y)).Normalized();
-        float speed = Input.IsActionPressed("sprint") ? SprintSpeed : MoveSpeed;
+	public override void _Process(double delta)
+	{
+		// Every render frame, not physics frame, so the held item doesn't jitter against mouse look.
+		Pickup held = _inventory.SelectedItem;
+		if (held == null)
+			return;
+		Basis cam = _camera.GlobalBasis;
+		// Turn the item's +X face (the glyph side of the wall blocks) toward the camera.
+		var basis = new Basis(cam.Z, cam.Y, -cam.X);
+		held.GlobalTransform = new Transform3D(basis, _camera.GlobalTransform * HoldOffset);
+	}
 
-        Vector3 target = direction * speed;
-        float blend = Mathf.Min(1f, Acceleration * dt);
-        velocity.X = Mathf.Lerp(velocity.X, target.X, blend);
-        velocity.Z = Mathf.Lerp(velocity.Z, target.Z, blend);
+	public override void _PhysicsProcess(double delta)
+	{
+		if (!_isLocal)
+			return;
 
-        Velocity = velocity;
-        MoveAndSlide();
-    }
+		float dt = (float)delta;
+		Vector3 velocity = Velocity;
 
-    /// <summary>
-    /// The input map in project.godot (Agent A) isn't defined yet. Register the agreed default
-    /// keys at runtime only for actions that are missing, so the real map always wins.
-    /// </summary>
-    private static void EnsureFallbackInputs()
-    {
-        EnsureKey("move_forward", Key.W);
-        EnsureKey("move_back", Key.S);
-        EnsureKey("move_left", Key.A);
-        EnsureKey("move_right", Key.D);
-        EnsureKey("jump", Key.Space);
-        EnsureKey("sprint", Key.Shift);
-        EnsureKey("pause", Key.Escape);
-    }
+		if (!IsOnFloor())
+			velocity.Y -= _gravity * dt;
+		else if (Input.IsActionJustPressed("jump") && Input.MouseMode == Input.MouseModeEnum.Captured)
+			velocity.Y = JumpVelocity;
 
-    private static void EnsureKey(string action, Key key)
-    {
-        if (InputMap.HasAction(action))
-            return;
-        InputMap.AddAction(action);
-        InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = key });
-    }
+		Vector2 input = Input.MouseMode == Input.MouseModeEnum.Captured
+			? Input.GetVector("move_left", "move_right", "move_forward", "move_back")
+			: Vector2.Zero;
+		Vector3 direction = (Transform.Basis * new Vector3(input.X, 0, input.Y)).Normalized();
+		float speed = Input.IsActionPressed("sprint") ? SprintSpeed : MoveSpeed;
+
+		float accel = IsOnFloor() ? Acceleration : Acceleration * AirControl;
+		Vector3 horizontal = new Vector3(velocity.X, 0, velocity.Z).Lerp(direction * speed, Mathf.Clamp(accel * dt, 0f, 1f));
+		velocity.X = horizontal.X;
+		velocity.Z = horizontal.Z;
+
+		Velocity = velocity;
+		MoveAndSlide();
+
+		UpdateInteractTarget();
+	}
+
+	public override void _ExitTree()
+	{
+		if (_isLocal && _inventory != null)
+			_inventory.Changed -= OnInventoryChanged;
+	}
+
+	private void Look(Vector2 relative)
+	{
+		// Yaw turns the body, pitch only tilts the camera, so movement stays level.
+		RotateY(-relative.X * MouseSensitivity);
+		Vector3 rot = _camera.Rotation;
+		float maxPitch = Mathf.DegToRad(MaxPitchDegrees);
+		rot.X = Mathf.Clamp(rot.X - relative.Y * MouseSensitivity, -maxPitch, maxPitch);
+		_camera.Rotation = rot;
+	}
+
+	private void UpdateInteractTarget()
+	{
+		_targetPickup = null;
+		_targetSlot = null;
+
+		if (_interactRay.IsColliding())
+		{
+			GodotObject hit = _interactRay.GetCollider();
+			if (hit is PickupSlot slot)
+			{
+				_targetSlot = slot;
+				_targetPickup = slot.Occupant;
+			}
+			else if (hit is Pickup pickup && !pickup.IsHeld)
+			{
+				_targetPickup = pickup;
+				_targetSlot = pickup.Slot;
+			}
+		}
+
+		Pickup selected = _inventory.SelectedItem;
+		bool full = _inventory.IsFull;
+
+		// Only rebuild the prompt string when something changed, to avoid per-frame allocations.
+		if (!_promptDirty && _targetPickup == _lastTargetPickup && _targetSlot == _lastTargetSlot
+			&& selected == _lastSelected && full == _lastFull)
+			return;
+		_promptDirty = false;
+		_lastTargetPickup = _targetPickup;
+		_lastTargetSlot = _targetSlot;
+		_lastSelected = selected;
+		_lastFull = full;
+
+		string prompt = "";
+		if (_targetPickup != null)
+			prompt = full ? "Inventory full" : $"Pick up {_targetPickup.ItemName}";
+		else if (_targetSlot != null && selected != null)
+			prompt = $"Place {selected.ItemName}";
+
+		bool lookingAtPickup = _targetPickup != null && !full;
+		if (prompt == _prompt && lookingAtPickup == IsLookingAtPickup)
+			return;
+		_prompt = prompt;
+		IsLookingAtPickup = lookingAtPickup;
+		EmitSignal(SignalName.InteractTargetChanged, prompt);
+	}
+
+	private void Interact()
+	{
+		if (_targetPickup != null)
+		{
+			if (!_inventory.TryAdd(_targetPickup))
+				return;
+			_targetPickup.Hold();
+			EmitSignal(SignalName.PickedUp, _targetPickup.ItemName);
+			RefreshHeldVisibility();
+			_promptDirty = true;
+			return;
+		}
+
+		Pickup selected = _inventory.SelectedItem;
+		if (_targetSlot == null || _targetSlot.Occupant != null || selected == null)
+			return;
+
+		_inventory.RemoveSelected();
+		selected.PlaceIn(_targetSlot);
+		EmitSignal(SignalName.Dropped, selected.ItemName);
+		_promptDirty = true;
+	}
+
+	private void DropSelected()
+	{
+		Pickup dropped = _inventory.RemoveSelected();
+		if (dropped == null)
+			return;
+		dropped.Drop(Velocity - _camera.GlobalBasis.Z * DropSpeed);
+		EmitSignal(SignalName.Dropped, dropped.ItemName);
+		_promptDirty = true;
+	}
+
+	private void OnInventoryChanged()
+	{
+		RefreshHeldVisibility();
+		_promptDirty = true;
+	}
+
+	// Only the selected item shows in hand; the rest are stowed out of sight.
+	private void RefreshHeldVisibility()
+	{
+		Pickup selected = _inventory.SelectedItem;
+		for (int i = 0; i < Inventory.SlotCount; i++)
+		{
+			Pickup item = _inventory.GetItem(i);
+			if (item != null)
+				item.Visible = item == selected;
+		}
+	}
+
+	// project.godot (Agent A) has no input map yet. Fill in only missing actions so A's map wins once it exists.
+	private static void EnsureDefaultInputActions()
+	{
+		AddKeyAction("move_forward", Key.W);
+		AddKeyAction("move_back", Key.S);
+		AddKeyAction("move_left", Key.A);
+		AddKeyAction("move_right", Key.D);
+		AddKeyAction("jump", Key.Space);
+		AddKeyAction("sprint", Key.Shift);
+		AddKeyAction("interact", Key.F);
+		AddKeyAction("drop", Key.Q);
+		AddKeyAction("pause", Key.Escape);
+		AddMouseAction("hotbar_next", MouseButton.WheelDown);
+		AddMouseAction("hotbar_prev", MouseButton.WheelUp);
+	}
+
+	private static void AddKeyAction(string action, Key key)
+	{
+		if (InputMap.HasAction(action))
+			return;
+		InputMap.AddAction(action);
+		InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = key });
+	}
+
+	private static void AddMouseAction(string action, MouseButton button)
+	{
+		if (InputMap.HasAction(action))
+			return;
+		InputMap.AddAction(action);
+		InputMap.ActionAddEvent(action, new InputEventMouseButton { ButtonIndex = button });
+	}
 }

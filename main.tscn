@@ -1,0 +1,110 @@
+[gd_scene format=3 uid="uid://deotlyst3v2p8"]
+
+[ext_resource type="PackedScene" uid="uid://d6mk53vs2qkt" path="res://art/level1.glb" id="2_h2yge"]
+[ext_resource type="PackedScene" path="res://gameplay/Player.tscn" id="3_player"]
+[ext_resource type="Script" uid="uid://doqbc4fdc8n6i" path="res://gameplay/Pickup.cs" id="4_pickup"]
+[ext_resource type="PackedScene" path="res://ui/Hud.tscn" id="5_hud"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
+
+[node name="Main" type="Node3D" unique_id=1023905190]
+
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1309347298]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=1704715384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0019159615, 0.0025099516, 0.0029062033)
+shape = SubResource("BoxShape3D_5uh84")
+
+[node name="level1" parent="." unique_id=330397902 instance=ExtResource("2_h2yge")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0, 8.864056)
+
+[node name="BrazierLight_1" parent="level1/Brazier_1" parent_id_path=PackedInt32Array(330397902, 1667227967) index="4" unique_id=1687656890]
+light_energy = 2.0
+omni_range = 1000.0
+
+[node name="BrazierLight_2" parent="level1/Brazier_2" parent_id_path=PackedInt32Array(330397902, 1470902309) index="4" unique_id=1177742417]
+light_energy = 2.0
+omni_range = 1000.0
+
+[node name="NicheLight_East" parent="level1" index="55" unique_id=1188104886]
+light_energy = 1.0
+omni_range = 5.0
+
+[node name="NicheLight_West" parent="level1" index="56" unique_id=49350730]
+light_energy = 1.0
+omni_range = 4.0
+
+[node name="SymbolBlock_1_eye-rigid" parent="level1" index="77" unique_id=1563277783]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Eye Block"
+
+[node name="SymbolBlock_2_water-rigid" parent="level1" index="78" unique_id=1242289240]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Water Block"
+
+[node name="SymbolBlock_3_ankh-rigid" parent="level1" index="79" unique_id=2095624528]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Ankh Block"
+
+[node name="SymbolBlock_4_scarab-rigid" parent="level1" index="80" unique_id=822033531]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Scarab Block"
+
+[node name="TorchLight_1" parent="level1/Torch_1" parent_id_path=PackedInt32Array(330397902, 610448304) index="4" unique_id=160460737]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_2" parent="level1/Torch_2" parent_id_path=PackedInt32Array(330397902, 967599858) index="4" unique_id=404778051]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_3" parent="level1/Torch_3" parent_id_path=PackedInt32Array(330397902, 1684148546) index="4" unique_id=676548562]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_4" parent="level1/Torch_4" parent_id_path=PackedInt32Array(330397902, 1818424328) index="4" unique_id=1320178306]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_5" parent="level1/Torch_5" parent_id_path=PackedInt32Array(330397902, 1114498535) index="4" unique_id=1013736128]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_6" parent="level1/Torch_6" parent_id_path=PackedInt32Array(330397902, 348894031) index="4" unique_id=1871639878]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_7" parent="level1/Torch_7" parent_id_path=PackedInt32Array(330397902, 919075549) index="4" unique_id=1957852107]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_8" parent="level1/Torch_8" parent_id_path=PackedInt32Array(330397902, 879601743) index="4" unique_id=1704617833]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="TorchLight_9" parent="level1/Torch_9" parent_id_path=PackedInt32Array(330397902, 1625058066) index="4" unique_id=143680846]
+light_energy = 0.75
+omni_range = 100.0
+omni_attenuation = 1.5
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1117330608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8482847, 2.1142697, 8.543005)
+
+[node name="Player" parent="." unique_id=175081959 instance=ExtResource("3_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.85, 1.5418396, 8.54)
+
+[node name="Hud" parent="." unique_id=1957876747 instance=ExtResource("5_hud")]
+
+[editable path="level1"]

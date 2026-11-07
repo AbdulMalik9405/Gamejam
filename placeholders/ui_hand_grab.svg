@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Drawn twice: a thick dark pass for the outline, then the light fill on top, so overlaps don't show seams. -->
+  <g fill="#1a1a1a" stroke="#1a1a1a" stroke-width="5" stroke-linejoin="round">
+    <rect x="17" y="13" width="7.5" height="26" rx="3.75"/>
+    <rect x="25" y="8" width="7.5" height="30" rx="3.75"/>
+    <rect x="33" y="10" width="7.5" height="28" rx="3.75"/>
+    <rect x="41" y="16" width="7" height="22" rx="3.5"/>
+    <rect x="17" y="29" width="31.5" height="25" rx="10"/>
+    <rect x="9" y="27" width="8" height="21" rx="4" transform="rotate(-32 13 46)"/>
+  </g>
+  <g fill="#f4ede0">
+    <rect x="17" y="13" width="7.5" height="26" rx="3.75"/>
+    <rect x="25" y="8" width="7.5" height="30" rx="3.75"/>
+    <rect x="33" y="10" width="7.5" height="28" rx="3.75"/>
+    <rect x="41" y="16" width="7" height="22" rx="3.5"/>
+    <rect x="17" y="29" width="31.5" height="25" rx="10"/>
+    <rect x="9" y="27" width="8" height="21" rx="4" transform="rotate(-32 13 46)"/>
+  </g>
+</svg>
