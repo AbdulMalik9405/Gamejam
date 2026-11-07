@@ -11,9 +11,14 @@ config_version=5
 [application]
 
 config/name="gamejam"
-run/main_scene="uid://deotlyst3v2p8"
+run/main_scene="res://net/Game.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://core/GameState.cs"
+Events="*res://core/Events.cs"
 
 [display]
 
@@ -27,6 +32,60 @@ project/assembly_name="gamejam"
 [filesystem]
 
 import/blender/enabled=false
+
+[input]
+
+move_forward={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":87)]
+}
+move_back={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":83)]
+}
+move_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":65)]
+}
+move_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":68)]
+}
+jump={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":32)]
+}
+sprint={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194325)]
+}
+interact={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":70)]
+}
+drop={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":81)]
+}
+pause={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194305)]
+}
+hotbar_next={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"device":-1,"button_index":5,"pressed":true)]
+}
+hotbar_prev={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"device":-1,"button_index":4,"pressed":true)]
+}
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="players"
+3d_physics/layer_3="interactables"
+3d_physics/layer_4="triggers"
 
 [physics]
 
