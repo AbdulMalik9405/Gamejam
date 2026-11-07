@@ -31,6 +31,8 @@ public partial class Player : CharacterBody3D
 	public Inventory Inventory => _inventory;
 	// True while the crosshair is on something F would pick up. Read by the HUD on InteractTargetChanged.
 	public bool IsLookingAtPickup { get; private set; }
+	// No moving, looking or interacting, e.g. during a cutscene.
+	public bool InputLocked { get; set; }
 
 	private static readonly StringName[] SlotActions =
 	{
@@ -94,7 +96,7 @@ public partial class Player : CharacterBody3D
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (!_isLocal)
+		if (!_isLocal || InputLocked)
 			return;
 
 		if (@event.IsActionPressed("pause"))
@@ -136,10 +138,10 @@ public partial class Player : CharacterBody3D
 
 		if (!IsOnFloor())
 			velocity.Y -= _gravity * dt;
-		else if (Input.IsActionJustPressed("jump") && Input.MouseMode == Input.MouseModeEnum.Captured)
+		else if (Input.IsActionJustPressed("jump") && Input.MouseMode == Input.MouseModeEnum.Captured && !InputLocked)
 			velocity.Y = JumpVelocity;
 
-		Vector2 input = Input.MouseMode == Input.MouseModeEnum.Captured
+		Vector2 input = Input.MouseMode == Input.MouseModeEnum.Captured && !InputLocked
 			? Input.GetVector("move_left", "move_right", "move_forward", "move_back")
 			: Vector2.Zero;
 		Vector3 direction = (Transform.Basis * new Vector3(input.X, 0, input.Y)).Normalized();
