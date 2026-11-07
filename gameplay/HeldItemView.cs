@@ -3,7 +3,7 @@ using Godot;
 namespace Gamejam.Gameplay;
 
 // Holds the selected hotbar item in front of the local player's camera and animates it: it rises into view when
-// equipped, drops out of view when put away, and `inspect` (Y) turns it around in front of you, CS-style. It also
+// equipped, drops out of view when put away, and `inspect` (Y) twirls it like the CS karambit inspect. It also
 // sways a little: it trails behind when you turn and bobs as you walk.
 // An item with a child Node3D named "Grip" is placed so that the grip sits at the hand, at the grip's angle (move the
 // grip to move the item in view); others keep the block pose.
@@ -16,20 +16,33 @@ public partial class HeldItemView : Node
 	// Where a put-away item sits relative to the hand, and how far it tips forward on the way down.
 	[Export] public Vector3 LoweredOffset { get; set; } = new(0.05f, -0.5f, 0.15f);
 	[Export] public float LoweredTiltDegrees { get; set; } = 60f;
-	[Export] public float InspectTime { get; set; } = 2.6f;
+	[Export] public float InspectTime { get; set; } = 3.0f;
 	// Inspect pose relative to the hand: pulled toward the middle of the screen and a little closer.
 	[Export] public Vector3 InspectOffset { get; set; } = new(-0.18f, 0.06f, 0.15f);
 	[Export] public float InspectTiltDegrees { get; set; } = 25f;
+	// The twirl: how many full spins, and the axis in camera space (mostly toward you, so it spins flat across the
+	// screen around the hand).
+	[Export] public int InspectSpins { get; set; } = 2;
+	[Export] public Vector3 InspectSpinAxis { get; set; } = new(0.3f, 0f, 1f);
+	// After the twirl the item is tipped toward you by this much and turned to show its side.
+	[Export] public float InspectShowTiltDegrees { get; set; } = 20f;
+	[Export] public float InspectShowTurnDegrees { get; set; } = 90f;
 	// How much of a turn the item trails behind, how fast it catches up, and the most it can lag.
-	[Export] public float LookSwayAmount { get; set; } = 0.5f;
-	[Export] public float LookSwaySpeed { get; set; } = 10f;
-	[Export] public float MaxLookSwayDegrees { get; set; } = 5f;
-	[Export] public float WalkBob { get; set; } = 0.012f;
+	[Export] public float LookSwayAmount { get; set; } = 0.8f;
+	[Export] public float LookSwaySpeed { get; set; } = 8f;
+	[Export] public float MaxLookSwayDegrees { get; set; } = 9f;
+	[Export] public float WalkBob { get; set; } = 0.022f;
 	[Export] public float StrideLength { get; set; } = 1.6f;
 	// Speed at which the walk bob reaches full strength (Player.MoveSpeed).
 	[Export] public float ReferenceSpeed { get; set; } = 4.5f;
 
 	private const string GripName = "Grip";
+	// Inspect phases, as fractions of InspectTime: raise and wind up, twirl, catch, show, put back.
+	private const float RaiseEnd = 0.1f;
+	private const float TwirlEnd = 0.38f;
+	private const float CatchEnd = 0.48f;
+	private const float ShowEnd = 0.84f;
+	private const float WindUpRadians = 0.5f;
 	// Turns an item's +X face (the glyph side of the wall blocks) toward the camera.
 	private static readonly Basis BlockBasis = new(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0));
 
@@ -113,7 +126,7 @@ public partial class HeldItemView : Node
 
 		Transform3D sway = Sway(dt);
 		if (_shown != null)
-			_shown.GlobalTransform = _camera.GlobalTransform * sway * AnimatedHand() * ItemInHand() * InspectSpin();
+			_shown.GlobalTransform = _camera.GlobalTransform * sway * AnimatedHand() * ItemInHand() * InspectTurn();
 	}
 
 	private void Show(Pickup item)
@@ -197,10 +210,11 @@ public partial class HeldItemView : Node
 		if (_inspect >= 0f)
 		{
 			float p = _inspect / InspectTime;
-			// Moves in and out over the first and last 15 %, one slow turn in between.
-			float weight = Mathf.SmoothStep(0f, 0.15f, p) * (1f - Mathf.SmoothStep(0.85f, 1f, p));
+			float weight = Mathf.SmoothStep(0f, RaiseEnd, p) * (1f - Mathf.SmoothStep(ShowEnd, 1f, p));
 			offset += InspectOffset * weight;
-			rotation *= new Basis(Vector3.Back, Mathf.DegToRad(InspectTiltDegrees) * weight);
+			rotation *= new Basis(InspectSpinAxis.Normalized(), TwirlAngle(p))
+				* new Basis(Vector3.Back, Mathf.DegToRad(InspectTiltDegrees) * weight)
+				* new Basis(Vector3.Right, Mathf.DegToRad(InspectShowTiltDegrees) * ShowAmount(p));
 		}
 
 		return new Transform3D(rotation, HoldOffset + offset) * new Transform3D(Basis.Identity, -HoldOffset);
@@ -213,14 +227,37 @@ public partial class HeldItemView : Node
 		return new Transform3D(BlockBasis, HoldOffset);
 	}
 
-	// One slow turn around the item's own up axis during the inspect.
-	private Transform3D InspectSpin()
+	// Karambit-style: a short wind-up the other way, the spins (fast in the middle), then a small overshoot as it's
+	// caught. Whole turns, so it ends where it started.
+	private float TwirlAngle(float p)
+	{
+		float spins = Mathf.Tau * InspectSpins;
+		if (p < RaiseEnd)
+			return -WindUpRadians * Mathf.SmoothStep(0f, 1f, p / RaiseEnd);
+		if (p < TwirlEnd)
+			return Mathf.Lerp(-WindUpRadians, spins, EaseInOut((p - RaiseEnd) / (TwirlEnd - RaiseEnd)));
+		if (p < CatchEnd)
+		{
+			float k = (p - TwirlEnd) / (CatchEnd - TwirlEnd);
+			return spins + Mathf.Sin(k * Mathf.Pi) * 0.25f * (1f - k);
+		}
+		return 0f;
+	}
+
+	// 0 → 1 → 0 over the show phase.
+	private static float ShowAmount(float p) =>
+		Mathf.Sin(Mathf.Clamp((p - CatchEnd) / (ShowEnd - CatchEnd), 0f, 1f) * Mathf.Pi);
+
+	// While showing it off, the item turns around its own up axis to show its side.
+	private Transform3D InspectTurn()
 	{
 		if (_inspect < 0f)
 			return Transform3D.Identity;
-		float spin = Mathf.SmoothStep(0.1f, 0.9f, _inspect / InspectTime) * Mathf.Tau;
-		return new Transform3D(new Basis(Vector3.Up, spin), Vector3.Zero);
+		float turn = Mathf.DegToRad(InspectShowTurnDegrees) * ShowAmount(_inspect / InspectTime);
+		return new Transform3D(new Basis(Vector3.Up, turn), Vector3.Zero);
 	}
+
+	private static float EaseInOut(float t) => t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
 
 	private static float EaseOut(float t)
 	{
