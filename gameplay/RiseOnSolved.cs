@@ -7,7 +7,7 @@ namespace Gamejam.Gameplay;
 // Target is usually a Pickup (e.g. gameplay/Key.tscn), which can be picked up once it has finished rising.
 public partial class RiseOnSolved : Node
 {
-	[Export] public SlotSequence Puzzle { get; set; }
+	[Export] public Puzzle Puzzle { get; set; }
 	[Export] public Node3D Target { get; set; }
 	// Where Target starts relative to its placed position, e.g. below the floor so it comes up through it.
 	[Export] public Vector3 StartOffset { get; set; } = new Vector3(0f, -0.4f, 0f);

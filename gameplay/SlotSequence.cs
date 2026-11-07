@@ -5,7 +5,7 @@ namespace Gamejam.Gameplay;
 
 // Solved when every listed slot holds its matching Pickup, e.g. symbol blocks arranged to spell a word.
 // Pickups are local to the player using them, so each machine checks its own copy of the objects.
-public partial class SlotSequence : Node
+public partial class SlotSequence : Puzzle
 {
 	// The slots, in order. A Pickup here stands for the slot it starts in (Pickup.CreateSlotAtStart),
 	// so blocks can be rearranged in place without adding slot nodes by hand.
@@ -14,11 +14,6 @@ public partial class SlotSequence : Node
 	[Export] public Array<Pickup> Answer { get; set; } = new();
 	// Once solved, taking a piece out again doesn't undo it.
 	[Export] public bool StaySolved { get; set; } = true;
-
-	[Signal] public delegate void SolvedEventHandler();
-	[Signal] public delegate void UnsolvedEventHandler();
-
-	public bool IsSolved { get; private set; }
 
 	private PickupSlot[] _slots = System.Array.Empty<PickupSlot>();
 

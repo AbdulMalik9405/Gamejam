@@ -47,6 +47,8 @@ public partial class Player : CharacterBody3D
 
 	private Pickup _targetPickup;
 	private PickupSlot _targetSlot;
+	private Interactable _targetInteractable;
+	private Interactable _lastTargetInteractable;
 	private Pickup _lastTargetPickup;
 	private PickupSlot _lastTargetSlot;
 	private Pickup _lastSelected;
@@ -189,11 +191,14 @@ public partial class Player : CharacterBody3D
 	{
 		_targetPickup = null;
 		_targetSlot = null;
+		_targetInteractable = null;
 
 		if (_interactRay.IsColliding())
 		{
 			GodotObject hit = _interactRay.GetCollider();
-			if (hit is PickupSlot slot)
+			if (hit is Interactable interactable)
+				_targetInteractable = interactable;
+			else if (hit is PickupSlot slot)
 			{
 				_targetSlot = slot;
 				_targetPickup = slot.Occupant;
@@ -209,17 +214,22 @@ public partial class Player : CharacterBody3D
 		bool full = _inventory.IsFull;
 
 		// Only rebuild the prompt string when something changed, to avoid per-frame allocations.
-		if (!_promptDirty && _targetPickup == _lastTargetPickup && _targetSlot == _lastTargetSlot
+		// An Interactable's prompt can change by itself (a torch gets lit), so it's re-read every frame.
+		if (!_promptDirty && _targetInteractable == null && _lastTargetInteractable == null
+			&& _targetPickup == _lastTargetPickup && _targetSlot == _lastTargetSlot
 			&& selected == _lastSelected && full == _lastFull)
 			return;
 		_promptDirty = false;
+		_lastTargetInteractable = _targetInteractable;
 		_lastTargetPickup = _targetPickup;
 		_lastTargetSlot = _targetSlot;
 		_lastSelected = selected;
 		_lastFull = full;
 
 		string prompt = "";
-		if (_targetPickup != null)
+		if (_targetInteractable != null)
+			prompt = _targetInteractable.GetPrompt(this);
+		else if (_targetPickup != null)
 			prompt = full ? "Inventory full" : $"Pick up {_targetPickup.ItemName}";
 		else if (_targetSlot != null && selected != null)
 			prompt = $"Place {selected.ItemName}";
@@ -234,6 +244,14 @@ public partial class Player : CharacterBody3D
 
 	private void Interact()
 	{
+		if (_targetInteractable != null)
+		{
+			_targetInteractable.Interact(this);
+			EmitSignal(SignalName.Interacted, _targetInteractable.Id);
+			_promptDirty = true;
+			return;
+		}
+
 		if (_targetPickup != null)
 		{
 			if (!_inventory.TryAdd(_targetPickup))
