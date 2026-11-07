@@ -45,7 +45,7 @@ public partial class Lobby : CanvasLayer
 		Input.MouseMode = Input.MouseModeEnum.Visible;
 	}
 
-	// Menu hidden, message along the top so the player can already walk around.
+	// Menu hidden, message along the top, over the intro camera's view of the tomb.
 	public void ShowWaiting(string status)
 	{
 		_menu.Visible = false;

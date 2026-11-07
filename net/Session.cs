@@ -1,4 +1,5 @@
 using Gamejam.Core;
+using Gamejam.Gameplay;
 using Godot;
 
 namespace Gamejam.Net;
@@ -10,6 +11,8 @@ public partial class Session : Node
 	public const int Port = 7777;
 
 	[Export] public PackedScene PlayerScene { get; set; }
+	// The present tomb is dark, so the present player starts with this in their first hotbar slot.
+	[Export] public PackedScene PresentStartItem { get; set; }
 
 	// Players move on their own machine and push their transform to the other peer.
 	private static readonly string[] SyncedProperties = { ".:position", ".:rotation" };
@@ -22,6 +25,7 @@ public partial class Session : Node
 	public override void _Ready()
 	{
 		PlayerScene ??= GD.Load<PackedScene>("res://gameplay/Player.tscn");
+		PresentStartItem ??= GD.Load<PackedScene>("res://gameplay/Torch.tscn");
 		_players = GetNode<Node3D>("Players");
 		_spawner = GetNode<MultiplayerSpawner>("PlayerSpawner");
 		_lobby = GetNode<Lobby>("Lobby");
@@ -67,7 +71,6 @@ public partial class Session : Node
 		Multiplayer.MultiplayerPeer = peer;
 		_hostEra = era;
 		_lobby.ShowWaiting($"Hosting. Your partner joins with IP {LocalAddresses()} (port {Port}). Waiting...");
-		Spawn(Multiplayer.GetUniqueId(), era);
 	}
 
 	// The addresses another computer on the same network can reach us on. 127.0.0.1 only works on this machine.
@@ -123,9 +126,25 @@ public partial class Session : Node
 			GD.PushWarning($"No spawn point for era {era}. Add a Marker3D in group \"spawn_points\" with meta era.");
 		player.AddChild(CreateSynchronizer());
 
-		player.Ready += () => GameState.Instance.RegisterPlayer(id, era, player);
+		player.Ready += () =>
+		{
+			GameState.Instance.RegisterPlayer(id, era, player);
+			if (era == Era.Present && id == Multiplayer.GetUniqueId())
+				GiveStartItem(player);
+		};
 		player.TreeExiting += () => GameState.Instance.UnregisterPlayer(id);
 		return player;
+	}
+
+	// Local only, like every pickup: the item exists just on the machine of the player carrying it.
+	private void GiveStartItem(Node3D player)
+	{
+		if (PresentStartItem == null || player is not Player owner)
+			return;
+		var item = PresentStartItem.Instantiate<Pickup>();
+		AddChild(item);
+		item.GlobalTransform = player.GlobalTransform;
+		owner.GiveItem(item);
 	}
 
 	private static MultiplayerSynchronizer CreateSynchronizer()
@@ -157,6 +176,11 @@ public partial class Session : Node
 	{
 		if (!Multiplayer.IsServer())
 			return;
+		// Nobody is spawned in the lobby: both players appear together once the partner is in.
+		// After a partner leaves, the host's player is still there and isn't spawned twice.
+		long hostId = Multiplayer.GetUniqueId();
+		if (!_players.HasNode(hostId.ToString()))
+			Spawn(hostId, _hostEra);
 		Spawn(id, _hostEra == Era.Past ? Era.Present : Era.Past);
 	}
 

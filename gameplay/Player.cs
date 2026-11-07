@@ -36,6 +36,7 @@ public partial class Player : CharacterBody3D
 	private MeshInstance3D _body;
 	private RayCast3D _interactRay;
 	private Inventory _inventory;
+	private HeldItemView _heldView;
 	private float _gravity;
 	private bool _isLocal;
 
@@ -79,6 +80,9 @@ public partial class Player : CharacterBody3D
 		// Hide our own body from our camera but keep its shadow; the other player still sees it.
 		_body.CastShadow = GeometryInstance3D.ShadowCastingSetting.ShadowsOnly;
 		_inventory.Changed += OnInventoryChanged;
+		_heldView = new HeldItemView { Name = "HeldItemView", HoldOffset = HoldOffset };
+		AddChild(_heldView);
+		_heldView.Setup(_camera, _inventory);
 		EnsureDefaultInputActions();
 		Input.MouseMode = Input.MouseModeEnum.Captured;
 	}
@@ -109,20 +113,10 @@ public partial class Player : CharacterBody3D
 			_inventory.Cycle(1);
 		else if (@event.IsActionPressed("hotbar_prev"))
 			_inventory.Cycle(-1);
+		else if (@event.IsActionPressed("inspect"))
+			_heldView.Inspect();
 		else if (@event is InputEventMouseMotion motion)
 			Look(motion.Relative);
-	}
-
-	public override void _Process(double delta)
-	{
-		// Every render frame, not physics frame, so the held item doesn't jitter against mouse look.
-		Pickup held = _inventory.SelectedItem;
-		if (held == null)
-			return;
-		Basis cam = _camera.GlobalBasis;
-		// Turn the item's +X face (the glyph side of the wall blocks) toward the camera.
-		var basis = new Basis(cam.Z, cam.Y, -cam.X);
-		held.GlobalTransform = new Transform3D(basis, _camera.GlobalTransform * HoldOffset);
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -226,7 +220,6 @@ public partial class Player : CharacterBody3D
 				return;
 			_targetPickup.Hold();
 			EmitSignal(SignalName.PickedUp, _targetPickup.ItemName);
-			RefreshHeldVisibility();
 			_promptDirty = true;
 			return;
 		}
@@ -241,6 +234,17 @@ public partial class Player : CharacterBody3D
 		_promptDirty = true;
 	}
 
+	// Puts an item straight into the hotbar, e.g. a starting item. The item must already be in the tree.
+	public bool GiveItem(Pickup pickup)
+	{
+		if (!_inventory.TryAdd(pickup))
+			return false;
+		pickup.Hold();
+		EmitSignal(SignalName.PickedUp, pickup.ItemName);
+		_promptDirty = true;
+		return true;
+	}
+
 	private void DropSelected()
 	{
 		Pickup dropped = _inventory.RemoveSelected();
@@ -251,23 +255,8 @@ public partial class Player : CharacterBody3D
 		_promptDirty = true;
 	}
 
-	private void OnInventoryChanged()
-	{
-		RefreshHeldVisibility();
-		_promptDirty = true;
-	}
-
-	// Only the selected item shows in hand; the rest are stowed out of sight.
-	private void RefreshHeldVisibility()
-	{
-		Pickup selected = _inventory.SelectedItem;
-		for (int i = 0; i < Inventory.SlotCount; i++)
-		{
-			Pickup item = _inventory.GetItem(i);
-			if (item != null)
-				item.Visible = item == selected;
-		}
-	}
+	// HeldItemView shows, hides and animates the items; here only the prompt can change.
+	private void OnInventoryChanged() => _promptDirty = true;
 
 	// project.godot (Agent A) has no input map yet. Fill in only missing actions so A's map wins once it exists.
 	private static void EnsureDefaultInputActions()
@@ -281,6 +270,7 @@ public partial class Player : CharacterBody3D
 		AddKeyAction("interact", Key.F);
 		AddKeyAction("drop", Key.Q);
 		AddKeyAction("pause", Key.Escape);
+		AddKeyAction("inspect", Key.Y);
 		AddMouseAction("hotbar_next", MouseButton.WheelDown);
 		AddMouseAction("hotbar_prev", MouseButton.WheelUp);
 	}

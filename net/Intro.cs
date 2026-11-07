@@ -3,8 +3,9 @@ using Godot;
 
 namespace Gamejam.Net;
 
-// Plays locally on each peer once both players are in: a swaying look at the intact tomb, a growing tremor and
-// time rupture, a white flash, then each player appears at their era's spawn with "Solve the puzzle".
+// The lobby backdrop and the intro, played locally on each peer. In the lobby the camera sways gently over the
+// intact tomb. Once both players are in: a growing tremor and time rupture, a white flash that softens into the
+// logo, then each player appears at their era's spawn with "Solve the puzzle".
 // Visual only; the one thing it touches is pausing and placing the local player.
 public partial class Intro : Node
 {
@@ -14,13 +15,28 @@ public partial class Intro : Node
 	[Export] public float SwayDuration { get; set; } = 3.5f;
 	[Export] public float RuptureDuration { get; set; } = 2.0f;
 	[Export] public float FlashDuration { get; set; } = 0.5f;
+	[Export] public float LogoFadeIn { get; set; } = 1.0f;
+	[Export] public float LogoHold { get; set; } = 1.8f;
+	[Export] public float LogoFadeOut { get; set; } = 0.8f;
+	[Export] public float LogoSize { get; set; } = 760f;
+	[Export] public float RevealDuration { get; set; } = 0.9f;
 	[Export] public float MessageHold { get; set; } = 2.0f;
 	[Export] public float MessageFade { get; set; } = 1.5f;
 	[Export] public float DollySpeed { get; set; } = 0.12f;
 	[Export] public float MaxShake { get; set; } = 0.08f;
 
+	private const string LogoPath = "res://art/logo.png";
+	// The logo's own paper colour, so the picture sits seamlessly on the backdrop.
+	private static readonly Color Parchment = new(0.976f, 0.91f, 0.804f);
+	// The white flash melts into the parchment over this long, while the logo starts to appear.
+	private const float FlashToParchment = 0.5f;
+	private const float LogoDelay = 0.2f;
+	private const float MessageFadeIn = 0.4f;
+
 	private static readonly StringName StrengthParam = "strength";
 	private static readonly StringName FlashParam = "flash";
+
+	private enum Phase { Lobby, Playing, Done }
 
 	private Session _session;
 	private CanvasLayer _hud;
@@ -28,12 +44,17 @@ public partial class Intro : Node
 	private Camera3D _camera;
 	private ColorRect _rupture;
 	private ShaderMaterial _ruptureMaterial;
+	private ColorRect _backdrop;
+	private Control _logo;
 	private Control _message;
 	private Label _subtitle;
 	private Node3D _localPlayer;
 	private Transform3D _baseView;
-	// Seconds since the intro started; negative while it isn't playing.
-	private double _time = -1;
+	private Phase _phase = Phase.Lobby;
+	// Seconds since the intro started.
+	private float _time;
+	// Drives the sway; never reset, so the lobby sway flows straight into the intro.
+	private float _clock;
 	private bool _swapped;
 
 	public override void _Ready()
@@ -43,6 +64,12 @@ public partial class Intro : Node
 		_players = GetNodeOrNull<Node3D>("../Players");
 		Build();
 		GameState.Instance.GameStarted += OnGameStarted;
+
+		_baseView = new Transform3D(Basis.Identity, CameraPosition).LookingAt(LookTarget, Vector3.Up);
+		_camera.GlobalTransform = _baseView;
+		_camera.MakeCurrent();
+		if (_hud != null)
+			_hud.Visible = false;
 	}
 
 	public override void _ExitTree()
@@ -52,14 +79,22 @@ public partial class Intro : Node
 
 	public override void _Process(double delta)
 	{
-		if (_time < 0)
+		if (_phase == Phase.Done)
 			return;
-		_time += delta;
-		float t = (float)_time;
-		float flashStart = SwayDuration + RuptureDuration;
-		float swapAt = flashStart + FlashDuration;
+		float dt = (float)delta;
+		_clock += dt;
+		if (_phase == Phase.Lobby)
+		{
+			UpdateCamera(0f, 0f);
+			return;
+		}
 
-		if (!_swapped)
+		_time += dt;
+		float t = _time;
+		float flashStart = SwayDuration + RuptureDuration;
+		float logoStart = flashStart + FlashDuration;
+
+		if (t < logoStart)
 		{
 			float rupture = Mathf.Clamp((t - SwayDuration) / RuptureDuration, 0f, 1f);
 			float flash = Mathf.Clamp((t - flashStart) / FlashDuration, 0f, 1f);
@@ -67,20 +102,31 @@ public partial class Intro : Node
 			_rupture.Visible = rupture > 0f;
 			_ruptureMaterial.SetShaderParameter(StrengthParam, rupture);
 			_ruptureMaterial.SetShaderParameter(FlashParam, flash);
-			if (t >= swapAt)
-				SwapToPlayer();
 			return;
 		}
 
-		float after = t - swapAt;
-		float flashLeft = 1f - Mathf.Clamp(after / FlashDuration, 0f, 1f);
-		_ruptureMaterial.SetShaderParameter(FlashParam, flashLeft);
-		_rupture.Visible = flashLeft > 0f;
+		// From here the screen is covered: first the white flash, then the parchment behind the logo.
+		_rupture.Visible = false;
+		float sinceLogo = t - logoStart;
+		float logoEnd = LogoDelay + LogoFadeIn + LogoHold + LogoFadeOut;
+		if (sinceLogo < logoEnd)
+		{
+			_backdrop.Color = Colors.White.Lerp(Parchment, Smooth(sinceLogo / FlashToParchment));
+			UpdateLogo(sinceLogo - LogoDelay);
+			return;
+		}
 
-		float fadeIn = Mathf.Clamp(after / 0.4f, 0f, 1f);
-		float fadeOut = 1f - Mathf.Clamp((after - FlashDuration - MessageHold) / MessageFade, 0f, 1f);
+		if (!_swapped)
+			SwapToPlayer();
+
+		float sinceReveal = sinceLogo - logoEnd;
+		_backdrop.Color = Parchment with { A = 1f - Smooth(sinceReveal / RevealDuration) };
+
+		float sinceMessage = sinceReveal - RevealDuration * 0.5f;
+		float fadeIn = Mathf.Clamp(sinceMessage / MessageFadeIn, 0f, 1f);
+		float fadeOut = 1f - Mathf.Clamp((sinceMessage - MessageFadeIn - MessageHold) / MessageFade, 0f, 1f);
 		_message.Modulate = new Color(1f, 1f, 1f, Mathf.Min(fadeIn, fadeOut));
-		if (after >= FlashDuration + MessageHold + MessageFade)
+		if (sinceMessage >= MessageFadeIn + MessageHold + MessageFade)
 			Finish();
 	}
 
@@ -96,24 +142,27 @@ public partial class Intro : Node
 		if (_players != null)
 			_players.Visible = false;
 
-		_baseView = new Transform3D(Basis.Identity, CameraPosition).LookingAt(LookTarget, Vector3.Up);
-		_camera.GlobalTransform = _baseView;
 		_camera.MakeCurrent();
 		_subtitle.Text = GameState.Instance.LocalEra == Era.Past ? "You are in the past" : "You are in the present";
 		_ruptureMaterial.SetShaderParameter(StrengthParam, 0f);
 		_ruptureMaterial.SetShaderParameter(FlashParam, 0f);
+		_backdrop.Color = Colors.Transparent;
+		_backdrop.Visible = true;
+		_logo.Modulate = Colors.Transparent;
+		_logo.Visible = true;
 		_message.Visible = false;
 		_swapped = false;
-		_time = 0;
+		_time = 0f;
+		_phase = Phase.Playing;
 	}
 
 	private void UpdateCamera(float t, float rupture)
 	{
 		// Slow drift forward with a gentle handheld sway, then a tremor that builds with the rupture.
 		Vector3 position = _baseView.Origin - _baseView.Basis.Z * DollySpeed * t;
-		float yaw = Mathf.Sin(t * 0.6f) * 0.035f;
-		float pitch = Mathf.Sin(t * 0.85f + 1f) * 0.02f;
-		float roll = Mathf.Sin(t * 0.45f) * 0.015f;
+		float yaw = Mathf.Sin(_clock * 0.6f) * 0.035f;
+		float pitch = Mathf.Sin(_clock * 0.85f + 1f) * 0.02f;
+		float roll = Mathf.Sin(_clock * 0.45f) * 0.015f;
 
 		float shake = rupture * rupture * MaxShake;
 		position += new Vector3(GD.Randf() - 0.5f, GD.Randf() - 0.5f, GD.Randf() - 0.5f) * shake;
@@ -123,11 +172,37 @@ public partial class Intro : Node
 		_camera.GlobalTransform = new Transform3D(basis, position);
 	}
 
-	// Happens under the full white flash, so the cut is hidden.
+	// Fades in while settling from slightly small, holds, then fades out while growing a touch.
+	private void UpdateLogo(float t)
+	{
+		float alpha;
+		float scale;
+		if (t < LogoFadeIn)
+		{
+			float k = Mathf.Clamp(t / LogoFadeIn, 0f, 1f);
+			alpha = Smooth(k);
+			scale = Mathf.Lerp(0.92f, 1f, 1f - Mathf.Pow(1f - k, 3f));
+		}
+		else if (t < LogoFadeIn + LogoHold)
+		{
+			alpha = 1f;
+			scale = 1f + 0.01f * (t - LogoFadeIn) / LogoHold;
+		}
+		else
+		{
+			float k = Smooth((t - LogoFadeIn - LogoHold) / LogoFadeOut);
+			alpha = 1f - k;
+			scale = 1.01f + 0.03f * k;
+		}
+		_logo.Modulate = new Color(1f, 1f, 1f, alpha);
+		_logo.Scale = new Vector2(scale, scale);
+	}
+
+	// Happens while the parchment covers the screen, so the cut is hidden.
 	private void SwapToPlayer()
 	{
 		_swapped = true;
-		_ruptureMaterial.SetShaderParameter(StrengthParam, 0f);
+		_logo.Visible = false;
 
 		if (_localPlayer != null && IsInstanceValid(_localPlayer))
 		{
@@ -150,16 +225,18 @@ public partial class Intro : Node
 			_hud.Visible = true;
 		if (_players != null)
 			_players.Visible = true;
-		_message.Modulate = new Color(1f, 1f, 1f, 0f);
+		_message.Modulate = Colors.Transparent;
 		_message.Visible = true;
 	}
 
 	private void Finish()
 	{
-		_time = -1;
+		_phase = Phase.Done;
 		_message.Visible = false;
-		_rupture.Visible = false;
+		_backdrop.Visible = false;
 	}
+
+	private static float Smooth(float t) => Mathf.SmoothStep(0f, 1f, Mathf.Clamp(t, 0f, 1f));
 
 	private void Build()
 	{
@@ -180,6 +257,14 @@ public partial class Intro : Node
 		_rupture.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		overlay.AddChild(_rupture);
 
+		_backdrop = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+		_backdrop.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		overlay.AddChild(_backdrop);
+
+		_logo = BuildLogo();
+		_logo.Visible = false;
+		overlay.AddChild(_logo);
+
 		var box = new VBoxContainer
 		{
 			MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -192,6 +277,40 @@ public partial class Intro : Node
 		box.AddChild(_subtitle);
 		overlay.AddChild(box);
 		_message = box;
+	}
+
+	private Control BuildLogo()
+	{
+		var size = new Vector2(LogoSize, LogoSize);
+		Control logo;
+		if (ResourceLoader.Exists(LogoPath))
+		{
+			logo = new TextureRect
+			{
+				Texture = GD.Load<Texture2D>(LogoPath),
+				ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+				StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+				Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://net/logo_edge.gdshader") },
+			};
+		}
+		else
+		{
+			// The art isn't on this computer yet: show the name instead.
+			var label = MakeLabel("TOMB OF TIME", 96);
+			label.VerticalAlignment = VerticalAlignment.Center;
+			label.AddThemeColorOverride("font_color", new Color(0.24f, 0.16f, 0.08f));
+			label.AddThemeConstantOverride("outline_size", 0);
+			logo = label;
+		}
+		logo.MouseFilter = Control.MouseFilterEnum.Ignore;
+		// Centred by hand (not with a container) so it can scale around its middle.
+		logo.SetAnchorsPreset(Control.LayoutPreset.Center);
+		logo.OffsetLeft = -size.X / 2f;
+		logo.OffsetTop = -size.Y / 2f;
+		logo.OffsetRight = size.X / 2f;
+		logo.OffsetBottom = size.Y / 2f;
+		logo.PivotOffset = size / 2f;
+		return logo;
 	}
 
 	private static Label MakeLabel(string text, int size)
