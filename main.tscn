@@ -6,8 +6,20 @@
 [ext_resource type="PackedScene" path="res://gameplay/Key.tscn" id="7_key"]
 [ext_resource type="Script" path="res://gameplay/SlotSequence.cs" id="8_slotsequence"]
 [ext_resource type="Script" path="res://gameplay/RiseOnSolved.cs" id="9_riseonsolved"]
+[ext_resource type="Script" path="res://gameplay/PickupSlot.cs" id="10_pickupslot"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_blue.svg" id="11_icon_blue"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_brown.svg" id="12_icon_brown"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_green.svg" id="13_icon_green"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_orange.svg" id="14_icon_orange"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_pink.svg" id="15_icon_pink"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_purple.svg" id="16_icon_purple"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_red.svg" id="17_icon_red"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_yellow.svg" id="18_icon_yellow"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pyramidslot"]
+size = Vector3(0.16, 0.16, 0.16)
 
 [sub_resource type="Environment" id="Environment_tomb"]
 background_mode = 1
@@ -38,30 +50,30 @@ omni_range = 12.0
 light_energy = 2.0
 omni_range = 12.0
 
-[node name="NicheLight_East" parent="level1" index="55"]
+[node name="NicheLight_East" parent="level1" index="43"]
 light_energy = 1.0
 omni_range = 5.0
 
-[node name="NicheLight_West" parent="level1" index="56"]
+[node name="NicheLight_West" parent="level1" index="44"]
 light_energy = 1.0
 omni_range = 4.0
 
-[node name="SymbolBlock_1_eye_M-rigid" parent="level1" index="77"]
+[node name="SymbolBlock_1_eye_M-rigid" parent="level1" index="74"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Eye Block"
 
-[node name="SymbolBlock_2_water_T-rigid" parent="level1" index="78"]
+[node name="SymbolBlock_2_water_T-rigid" parent="level1" index="75"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Water Block"
 
-[node name="SymbolBlock_3_ankh_O-rigid" parent="level1" index="79"]
+[node name="SymbolBlock_3_ankh_O-rigid" parent="level1" index="76"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Ankh Block"
 
-[node name="SymbolBlock_4_scarab_B-rigid" parent="level1" index="80"]
+[node name="SymbolBlock_4_scarab_B-rigid" parent="level1" index="77"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Scarab Block"
@@ -121,33 +133,89 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
 light_energy = 1.0
 omni_range = 12.0
 
-[node name="Ruin_EntranceFill" parent="level1old" index="27" unique_id=579101653]
+[node name="Ruin_EntranceFill" parent="level1old" index="28" unique_id=579101653]
 light_energy = 0.6
 omni_range = 8.0
 
-[node name="Ruin_SunShaft" parent="level1old" index="92" unique_id=1567002519]
+[node name="Ruin_SunShaft" parent="level1old" index="89" unique_id=1567002519]
 light_energy = 6.0
 spot_range = 14.0
 
-[node name="Ruin_SymbolBlock_1_eye-rigid" parent="level1old" index="93"]
+[node name="Ruin_SymbolBlock_1_eye-rigid" parent="level1old" index="90"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Eye Block"
 
-[node name="Ruin_SymbolBlock_2_water-rigid" parent="level1old" index="94"]
+[node name="Ruin_SymbolBlock_2_water-rigid" parent="level1old" index="91"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Water Block"
 
-[node name="Ruin_SymbolBlock_3_ankh-rigid" parent="level1old" index="95"]
+[node name="Ruin_SymbolBlock_3_ankh-rigid" parent="level1old" index="92"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Ankh Block"
 
-[node name="Ruin_SymbolBlock_4_scarab-rigid" parent="level1old" index="96"]
+[node name="Ruin_SymbolBlock_4_scarab-rigid" parent="level1old" index="93"]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Scarab Block"
+
+[node name="Ruin_Pyramid_Blue-rigid" parent="level1old" index="62"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Blue Pyramid"
+Icon = ExtResource("11_icon_blue")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Brown-rigid" parent="level1old" index="63"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Brown Pyramid"
+Icon = ExtResource("12_icon_brown")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Green-rigid" parent="level1old" index="64"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Green Pyramid"
+Icon = ExtResource("13_icon_green")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Orange-rigid" parent="level1old" index="65"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Orange Pyramid"
+Icon = ExtResource("14_icon_orange")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Pink-rigid" parent="level1old" index="66"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Pink Pyramid"
+Icon = ExtResource("15_icon_pink")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Purple-rigid" parent="level1old" index="67"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Purple Pyramid"
+Icon = ExtResource("16_icon_purple")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Red-rigid" parent="level1old" index="68"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Red Pyramid"
+Icon = ExtResource("17_icon_red")
+CreateSlotAtStart = false
+
+[node name="Ruin_Pyramid_Yellow-rigid" parent="level1old" index="69"]
+freeze = true
+script = ExtResource("4_pickup")
+ItemName = "Yellow Pyramid"
+Icon = ExtResource("18_icon_yellow")
+CreateSlotAtStart = false
 
 [node name="SpawnPast" type="Marker3D" parent="." unique_id=1404518722 groups=["spawn_points"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0.2, 12.864056)
@@ -169,6 +237,102 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 189.29, 0.835, 8.864056)
 script = ExtResource("9_riseonsolved")
 Puzzle = NodePath("../TombPuzzle")
 Target = NodePath("../Key")
+
+[node name="PyramidSlots" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
+
+[node name="Slot1" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, -0.27)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_1"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot2" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, -0.09)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_2"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot3" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, 0.09)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_3"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot4" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, 0.27)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_4"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot5" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, -0.18)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_5"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot6" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, 0)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_6"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot6"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot7" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, 0.18)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_7"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot7"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="Slot8" type="Area3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.415, 0.964, 0)
+script = ExtResource("10_pickupslot")
+Id = "pyramid_slot_8"
+Size = Vector3(0.14, 0.02, 0.14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot8"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+shape = SubResource("BoxShape3D_pyramidslot")
+
+[node name="PyramidPuzzle" type="Node" parent="." node_paths=PackedStringArray("Slots", "Answer")]
+script = ExtResource("8_slotsequence")
+Slots = [NodePath("../PyramidSlots/Slot1"), NodePath("../PyramidSlots/Slot2"), NodePath("../PyramidSlots/Slot3"), NodePath("../PyramidSlots/Slot4"), NodePath("../PyramidSlots/Slot5"), NodePath("../PyramidSlots/Slot6"), NodePath("../PyramidSlots/Slot7"), NodePath("../PyramidSlots/Slot8")]
+Answer = [NodePath("../level1old/Ruin_Pyramid_Brown-rigid"), NodePath("../level1old/Ruin_Pyramid_Blue-rigid"), NodePath("../level1old/Ruin_Pyramid_Orange-rigid"), NodePath("../level1old/Ruin_Pyramid_Green-rigid"), NodePath("../level1old/Ruin_Pyramid_Purple-rigid"), NodePath("../level1old/Ruin_Pyramid_Red-rigid"), NodePath("../level1old/Ruin_Pyramid_Yellow-rigid"), NodePath("../level1old/Ruin_Pyramid_Pink-rigid")]
+
+[node name="PyramidKey" parent="." instance=ExtResource("7_key")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203.13, 0.835, 8.864056)
+
+[node name="PyramidKeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
+script = ExtResource("9_riseonsolved")
+Puzzle = NodePath("../PyramidPuzzle")
+Target = NodePath("../PyramidKey")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")
