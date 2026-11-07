@@ -24,6 +24,7 @@ public partial class Intro : Node
 
 	private Session _session;
 	private CanvasLayer _hud;
+	private Node3D _players;
 	private Camera3D _camera;
 	private ColorRect _rupture;
 	private ShaderMaterial _ruptureMaterial;
@@ -39,6 +40,7 @@ public partial class Intro : Node
 	{
 		_session = GetParent<Session>();
 		_hud = GetNodeOrNull<CanvasLayer>("../Hud");
+		_players = GetNodeOrNull<Node3D>("../Players");
 		Build();
 		GameState.Instance.GameStarted += OnGameStarted;
 	}
@@ -90,6 +92,9 @@ public partial class Intro : Node
 			_localPlayer.ProcessMode = ProcessModeEnum.Disabled;
 		if (_hud != null)
 			_hud.Visible = false;
+		// The past player's body stands right in front of the intro camera.
+		if (_players != null)
+			_players.Visible = false;
 
 		_baseView = new Transform3D(Basis.Identity, CameraPosition).LookingAt(LookTarget, Vector3.Up);
 		_camera.GlobalTransform = _baseView;
@@ -143,6 +148,8 @@ public partial class Intro : Node
 
 		if (_hud != null)
 			_hud.Visible = true;
+		if (_players != null)
+			_players.Visible = true;
 		_message.Modulate = new Color(1f, 1f, 1f, 0f);
 		_message.Visible = true;
 	}

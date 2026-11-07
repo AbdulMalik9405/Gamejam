@@ -9,10 +9,10 @@ namespace Gamejam.Net;
 public partial class CameraSway : Node
 {
 	[Export] public float StrideLength { get; set; } = 1.6f;
-	[Export] public float BobHeight { get; set; } = 0.035f;
-	[Export] public float SideSway { get; set; } = 0.02f;
-	[Export] public float RollDegrees { get; set; } = 0.5f;
-	[Export] public float BreathHeight { get; set; } = 0.006f;
+	[Export] public float BobHeight { get; set; } = 0.05f;
+	[Export] public float SideSway { get; set; } = 0.03f;
+	[Export] public float RollDegrees { get; set; } = 0.8f;
+	[Export] public float BreathHeight { get; set; } = 0.008f;
 	// Speed at which the bob reaches full strength (Player.MoveSpeed); sprinting goes a little past it.
 	[Export] public float ReferenceSpeed { get; set; } = 4.5f;
 
@@ -24,20 +24,14 @@ public partial class CameraSway : Node
 	private float _amount;
 	private float _time;
 
-	public override void _Ready()
-	{
-		GameState.Instance.GameStarted += OnGameStarted;
-	}
-
-	public override void _ExitTree()
-	{
-		GameState.Instance.GameStarted -= OnGameStarted;
-	}
-
 	public override void _Process(double delta)
 	{
+		// Picks up the local player as soon as it spawns, so it also works while waiting for the partner.
 		if (_camera == null || !IsInstanceValid(_camera) || !IsInstanceValid(_player))
+		{
+			FindLocalPlayer();
 			return;
+		}
 		float dt = (float)delta;
 		_time += dt;
 
@@ -58,7 +52,7 @@ public partial class CameraSway : Node
 		_camera.Rotation = rotation;
 	}
 
-	private void OnGameStarted()
+	private void FindLocalPlayer()
 	{
 		_player = GameState.Instance.GetPlayerNode(Multiplayer.GetUniqueId()) as CharacterBody3D;
 		_camera = _player?.GetNodeOrNull<Camera3D>("Camera");
