@@ -41,6 +41,11 @@ materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "nodes": {
+"PATH:Ruin_ExitDoor": {
+"generate/physics": true,
+"physics/body_type": 0,
+"physics/shape_type": 1
+},
 "PATH:Ruin_Sarcophagus_Base": {
 "generate/physics": true,
 "physics/body_type": 0,
