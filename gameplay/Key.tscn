@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://gameplay/Pickup.cs" id="1_pickup"]
+[ext_resource type="PackedScene" path="res://art/key.glb" id="2_model"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_key.svg" id="3_icon"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_key"]
+size = Vector3(0.24, 0.1, 0.06)
+
+[node name="Key" type="RigidBody3D"]
+collision_layer = 4
+collision_mask = 1
+freeze = true
+script = ExtResource("1_pickup")
+ItemName = "Key"
+Icon = ExtResource("3_icon")
+CreateSlotAtStart = false
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.014, 0, 0)
+shape = SubResource("BoxShape3D_key")
