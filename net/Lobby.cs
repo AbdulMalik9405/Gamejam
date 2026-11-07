@@ -53,16 +53,8 @@ public partial class Lobby : CanvasLayer
 		_banner.Text = status;
 	}
 
-	private void OnGameStarted()
-	{
-		string era = GameState.Instance.LocalEra == Era.Past ? "the PAST" : "the PRESENT";
-		ShowWaiting($"Your partner is here. You are in {era}.");
-		GetTree().CreateTimer(4.0).Timeout += () =>
-		{
-			if (GameState.Instance.IsRunning)
-				_banner.Visible = false;
-		};
-	}
+	// net/Intro.cs takes over the screen from here.
+	private void OnGameStarted() => _banner.Visible = false;
 
 	private void OnEscaped(double elapsedSeconds)
 	{

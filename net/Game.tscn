@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" uid="uid://deotlyst3v2p8" path="res://main.tscn" id="2_level"]
 [ext_resource type="PackedScene" path="res://ui/Hud.tscn" id="3_hud"]
 [ext_resource type="Script" path="res://net/Lobby.cs" id="4_lobby"]
+[ext_resource type="Script" path="res://net/Intro.cs" id="5_intro"]
+[ext_resource type="Script" path="res://net/CameraSway.cs" id="6_sway"]
 
 [node name="Game" type="Node"]
 script = ExtResource("1_session")
@@ -19,3 +21,9 @@ spawn_path = NodePath("../Players")
 
 [node name="Lobby" type="CanvasLayer" parent="."]
 script = ExtResource("4_lobby")
+
+[node name="Intro" type="Node" parent="."]
+script = ExtResource("5_intro")
+
+[node name="CameraSway" type="Node" parent="."]
+script = ExtResource("6_sway")

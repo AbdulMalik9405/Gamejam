@@ -142,7 +142,7 @@ public partial class Session : Node
 		return new MultiplayerSynchronizer { Name = "Sync", ReplicationConfig = config };
 	}
 
-	private Marker3D FindSpawnPoint(Era era)
+	public Marker3D FindSpawnPoint(Era era)
 	{
 		string wanted = era == Era.Past ? "past" : "present";
 		foreach (Node node in GetTree().GetNodesInGroup("spawn_points"))
