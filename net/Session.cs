@@ -66,8 +66,28 @@ public partial class Session : Node
 		}
 		Multiplayer.MultiplayerPeer = peer;
 		_hostEra = era;
-		_lobby.ShowWaiting($"Hosting on port {Port}. Waiting for your partner to join...");
+		_lobby.ShowWaiting($"Hosting. Your partner joins with IP {LocalAddresses()} (port {Port}). Waiting...");
 		Spawn(Multiplayer.GetUniqueId(), era);
+	}
+
+	// The addresses another computer on the same network can reach us on. 127.0.0.1 only works on this machine.
+	private static string LocalAddresses()
+	{
+		var found = new System.Collections.Generic.List<string>();
+		foreach (string address in IP.GetLocalAddresses())
+		{
+			if (address.Contains(':') || address.StartsWith("127.") || address.StartsWith("169.254."))
+				continue;
+			found.Add(IsTailscale(address) ? $"{address} (Tailscale)" : address);
+		}
+		return found.Count == 0 ? "127.0.0.1 (no network found)" : string.Join(" or ", found);
+	}
+
+	// Tailscale hands out addresses in 100.64.0.0/10.
+	private static bool IsTailscale(string address)
+	{
+		string[] parts = address.Split('.');
+		return parts.Length == 4 && parts[0] == "100" && int.TryParse(parts[1], out int second) && second >= 64 && second <= 127;
 	}
 
 	private void Join(string address)
