@@ -1,14 +1,13 @@
 [gd_scene format=3 uid="uid://deotlyst3v2p8"]
 
 [ext_resource type="PackedScene" uid="uid://d6mk53vs2qkt" path="res://art/level1.glb" id="2_h2yge"]
-[ext_resource type="PackedScene" uid="uid://crmknnv048a5m" path="res://art/level1old.glb" id="6_level1old"]
 [ext_resource type="Script" uid="uid://doqbc4fdc8n6i" path="res://gameplay/Pickup.cs" id="4_pickup"]
+[ext_resource type="PackedScene" uid="uid://crmknnv048a5m" path="res://art/level1old.glb" id="6_level1old"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
 
 [sub_resource type="Environment" id="Environment_tomb"]
 background_mode = 1
-background_color = Color(0, 0, 0, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.45, 0.38, 0.3, 1)
 ambient_light_energy = 0.15
@@ -27,83 +26,83 @@ shape = SubResource("BoxShape3D_5uh84")
 [node name="level1" parent="." unique_id=330397902 groups=["era_past"] instance=ExtResource("2_h2yge")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0, 8.864056)
 
-[node name="BrazierLight_1" parent="level1/Brazier_1" parent_id_path=PackedInt32Array(330397902, 1667227967) index="4" unique_id=1687656890]
+[node name="BrazierLight_1" parent="level1/Brazier_1" parent_id_path=PackedInt32Array(330397902, 913372008) index="4" unique_id=515703992]
 light_energy = 2.0
 omni_range = 12.0
 
-[node name="BrazierLight_2" parent="level1/Brazier_2" parent_id_path=PackedInt32Array(330397902, 1470902309) index="4" unique_id=1177742417]
+[node name="BrazierLight_2" parent="level1/Brazier_2" parent_id_path=PackedInt32Array(330397902, 1913393260) index="4" unique_id=672661182]
 light_energy = 2.0
 omni_range = 12.0
 
-[node name="NicheLight_East" parent="level1" index="55" unique_id=1188104886]
+[node name="NicheLight_East" parent="level1" index="55" unique_id=301128078]
 light_energy = 1.0
 omni_range = 5.0
 
-[node name="NicheLight_West" parent="level1" index="56" unique_id=49350730]
+[node name="NicheLight_West" parent="level1" index="56" unique_id=1711423529]
 light_energy = 1.0
 omni_range = 4.0
 
-[node name="SymbolBlock_1_eye-rigid" parent="level1" index="77" unique_id=1563277783]
+[node name="SymbolBlock_1_eye-rigid" parent="level1" index="77" unique_id=942312702]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Eye Block"
 
-[node name="SymbolBlock_2_water-rigid" parent="level1" index="78" unique_id=1242289240]
+[node name="SymbolBlock_2_water-rigid" parent="level1" index="78" unique_id=74521345]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Water Block"
 
-[node name="SymbolBlock_3_ankh-rigid" parent="level1" index="79" unique_id=2095624528]
+[node name="SymbolBlock_3_ankh-rigid" parent="level1" index="79" unique_id=703834289]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Ankh Block"
 
-[node name="SymbolBlock_4_scarab-rigid" parent="level1" index="80" unique_id=822033531]
+[node name="SymbolBlock_4_scarab-rigid" parent="level1" index="80" unique_id=1691751208]
 freeze = true
 script = ExtResource("4_pickup")
 ItemName = "Scarab Block"
 
-[node name="TorchLight_1" parent="level1/Torch_1" parent_id_path=PackedInt32Array(330397902, 610448304) index="4" unique_id=160460737]
+[node name="TorchLight_1" parent="level1/Torch_1" parent_id_path=PackedInt32Array(330397902, 2126843816) index="4" unique_id=61365119]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_2" parent="level1/Torch_2" parent_id_path=PackedInt32Array(330397902, 967599858) index="4" unique_id=404778051]
+[node name="TorchLight_2" parent="level1/Torch_2" parent_id_path=PackedInt32Array(330397902, 827850515) index="4" unique_id=1022355109]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_3" parent="level1/Torch_3" parent_id_path=PackedInt32Array(330397902, 1684148546) index="4" unique_id=676548562]
+[node name="TorchLight_3" parent="level1/Torch_3" parent_id_path=PackedInt32Array(330397902, 274664643) index="4" unique_id=1106698030]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_4" parent="level1/Torch_4" parent_id_path=PackedInt32Array(330397902, 1818424328) index="4" unique_id=1320178306]
+[node name="TorchLight_4" parent="level1/Torch_4" parent_id_path=PackedInt32Array(330397902, 1862097133) index="4" unique_id=1066516796]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_5" parent="level1/Torch_5" parent_id_path=PackedInt32Array(330397902, 1114498535) index="4" unique_id=1013736128]
+[node name="TorchLight_5" parent="level1/Torch_5" parent_id_path=PackedInt32Array(330397902, 247389247) index="4" unique_id=439644155]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_6" parent="level1/Torch_6" parent_id_path=PackedInt32Array(330397902, 348894031) index="4" unique_id=1871639878]
+[node name="TorchLight_6" parent="level1/Torch_6" parent_id_path=PackedInt32Array(330397902, 710802) index="4" unique_id=1436845464]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_7" parent="level1/Torch_7" parent_id_path=PackedInt32Array(330397902, 919075549) index="4" unique_id=1957852107]
+[node name="TorchLight_7" parent="level1/Torch_7" parent_id_path=PackedInt32Array(330397902, 579321494) index="4" unique_id=1819234229]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_8" parent="level1/Torch_8" parent_id_path=PackedInt32Array(330397902, 879601743) index="4" unique_id=1704617833]
+[node name="TorchLight_8" parent="level1/Torch_8" parent_id_path=PackedInt32Array(330397902, 599476235) index="4" unique_id=1666309572]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
 
-[node name="TorchLight_9" parent="level1/Torch_9" parent_id_path=PackedInt32Array(330397902, 1625058066) index="4" unique_id=143680846]
+[node name="TorchLight_9" parent="level1/Torch_9" parent_id_path=PackedInt32Array(330397902, 1207759121) index="4" unique_id=717955606]
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
@@ -111,10 +110,20 @@ omni_attenuation = 1.5
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1117330608]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8482847, 2.1142697, 8.543005)
 
-
-
 [node name="level1old" parent="." unique_id=87899872 groups=["era_present"] instance=ExtResource("6_level1old")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
+
+[node name="Ruin_Bounce" parent="level1old" index="0" unique_id=991442242]
+light_energy = 1.0
+omni_range = 12.0
+
+[node name="Ruin_EntranceFill" parent="level1old" index="27" unique_id=579101653]
+light_energy = 0.6
+omni_range = 8.0
+
+[node name="Ruin_SunShaft" parent="level1old" index="92" unique_id=1567002519]
+light_energy = 6.0
+spot_range = 14.0
 
 [node name="SpawnPast" type="Marker3D" parent="." unique_id=1404518722 groups=["spawn_points"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0.2, 12.864056)
@@ -124,19 +133,7 @@ metadata/era = "past"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0.2, 12.864056)
 metadata/era = "present"
 
-[node name="Ruin_Bounce" parent="level1old" index="0"]
-light_energy = 1.0
-omni_range = 12.0
-
-[node name="Ruin_EntranceFill" parent="level1old" index="27"]
-light_energy = 0.6
-omni_range = 8.0
-
-[node name="Ruin_SunShaft" parent="level1old" index="92"]
-light_energy = 6.0
-spot_range = 14.0
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")
 
 [editable path="level1"]
