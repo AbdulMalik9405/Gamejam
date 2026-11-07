@@ -11,7 +11,9 @@ public partial class Inventory : Node
 	[Signal] public delegate void ChangedEventHandler();
 
 	public int SelectedIndex { get; private set; }
-	public Pickup SelectedItem => _items[SelectedIndex];
+	// Put away: the selected slot keeps its item, but nothing is in hand.
+	public bool Holstered { get; private set; }
+	public Pickup SelectedItem => Holstered ? null : _items[SelectedIndex];
 
 	public bool IsFull
 	{
@@ -37,13 +39,16 @@ public partial class Inventory : Node
 		if (index < 0)
 			return false;
 		_items[index] = pickup;
+		// Picked up straight into the hand.
+		if (index == SelectedIndex)
+			Holstered = false;
 		EmitSignal(SignalName.Changed);
 		return true;
 	}
 
 	public Pickup RemoveSelected()
 	{
-		Pickup item = _items[SelectedIndex];
+		Pickup item = SelectedItem;
 		if (item == null)
 			return null;
 		_items[SelectedIndex] = null;
@@ -51,12 +56,17 @@ public partial class Inventory : Node
 		return item;
 	}
 
+	// Selecting the slot that's already selected puts its item away, or takes it out again.
 	public void Select(int index)
 	{
 		index = Mathf.PosMod(index, SlotCount);
 		if (index == SelectedIndex)
-			return;
-		SelectedIndex = index;
+			Holstered = !Holstered;
+		else
+		{
+			SelectedIndex = index;
+			Holstered = false;
+		}
 		EmitSignal(SignalName.Changed);
 	}
 

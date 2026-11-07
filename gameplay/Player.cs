@@ -32,6 +32,11 @@ public partial class Player : CharacterBody3D
 	// True while the crosshair is on something F would pick up. Read by the HUD on InteractTargetChanged.
 	public bool IsLookingAtPickup { get; private set; }
 
+	private static readonly StringName[] SlotActions =
+	{
+		"hotbar_1", "hotbar_2", "hotbar_3", "hotbar_4", "hotbar_5", "hotbar_6", "hotbar_7", "hotbar_8", "hotbar_9",
+	};
+
 	private Camera3D _camera;
 	private MeshInstance3D _body;
 	private RayCast3D _interactRay;
@@ -117,6 +122,8 @@ public partial class Player : CharacterBody3D
 			_heldView.Inspect();
 		else if (@event is InputEventMouseMotion motion)
 			Look(motion.Relative);
+		else
+			SelectSlotFromKey(@event);
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -163,6 +170,19 @@ public partial class Player : CharacterBody3D
 		float maxPitch = Mathf.DegToRad(MaxPitchDegrees);
 		rot.X = Mathf.Clamp(rot.X - relative.Y * MouseSensitivity, -maxPitch, maxPitch);
 		_camera.Rotation = rot;
+	}
+
+	// Number keys pick a hotbar slot; the selected slot's number puts its item away or takes it out.
+	private void SelectSlotFromKey(InputEvent @event)
+	{
+		for (int i = 0; i < SlotActions.Length; i++)
+		{
+			if (@event.IsActionPressed(SlotActions[i]))
+			{
+				_inventory.Select(i);
+				return;
+			}
+		}
 	}
 
 	private void UpdateInteractTarget()
@@ -271,6 +291,8 @@ public partial class Player : CharacterBody3D
 		AddKeyAction("drop", Key.Q);
 		AddKeyAction("pause", Key.Escape);
 		AddKeyAction("inspect", Key.Y);
+		for (int i = 0; i < SlotActions.Length; i++)
+			AddKeyAction(SlotActions[i], Key.Key1 + i);
 		AddMouseAction("hotbar_next", MouseButton.WheelDown);
 		AddMouseAction("hotbar_prev", MouseButton.WheelUp);
 	}
