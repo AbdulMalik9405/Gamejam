@@ -20,6 +20,7 @@ public partial class Hud : CanvasLayer
 	private TextureRect _grabHand;
 	private Label _prompt;
 	private Label _selectedName;
+	private Control _hotbar;
 	private readonly PanelContainer[] _slots = new PanelContainer[Inventory.SlotCount];
 	private readonly TextureRect[] _icons = new TextureRect[Inventory.SlotCount];
 	private StyleBoxFlat _slotStyle;
@@ -92,6 +93,18 @@ public partial class Hud : CanvasLayer
 		}
 		Pickup selected = _inventory.SelectedItem;
 		_selectedName.Text = selected == null ? "" : selected.ItemName;
+		// Only show the hotbar while carrying something.
+		_hotbar.Visible = HasAnyItem();
+	}
+
+	private bool HasAnyItem()
+	{
+		for (int i = 0; i < Inventory.SlotCount; i++)
+		{
+			if (_inventory.GetItem(i) != null)
+				return true;
+		}
+		return false;
 	}
 
 	private void BuildCrosshair()
@@ -145,7 +158,9 @@ public partial class Hud : CanvasLayer
 		column.OffsetTop = -(SlotSize + 60f);
 		column.OffsetBottom = -16f;
 		column.AddThemeConstantOverride("separation", 6);
+		column.Visible = false;
 		AddChild(column);
+		_hotbar = column;
 
 		_selectedName = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, HorizontalAlignment = HorizontalAlignment.Center };
 		AddOutline(_selectedName, 18);
