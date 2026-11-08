@@ -4,9 +4,9 @@ using Godot;
 
 namespace Gamejam.Gameplay;
 
-// Tells the past player when the present player solves a puzzle: a line on their screen (Events.ShowMessage, so the
-// same HUD message and font the present player gets), one after another as the present player gets further. A cutscene
-// hides the HUD, so the line waits until it's back.
+// Tells the past player when the present player solves a puzzle (the present player sees the reward's cutscene; the
+// past player doesn't): a short time warp ripples over their screen and a line appears in the middle of it, one line
+// after another as the present player gets further. A cutscene hides the HUD, so the warp waits until it's back.
 public partial class PartnerNews : Node
 {
 	// In order: the first puzzle the present player solves shows the first line, and so on; the last one repeats.
@@ -18,7 +18,8 @@ public partial class PartnerNews : Node
 	};
 	// Wait after the solve before showing it (the puzzle sting plays first).
 	[Export] public float Delay { get; set; } = 1.5f;
-	[Export] public float Duration { get; set; } = 6f;
+	[Export] public float Duration { get; set; } = 5f;
+	[Export] public float WarpTime { get; set; } = 1.4f;
 	// How long a line waits for a cutscene to end before it's dropped.
 	[Export] public float MaxWait { get; set; } = 40f;
 
@@ -82,6 +83,42 @@ public partial class PartnerNews : Node
 		}
 		if (hud != null && (!IsInstanceValid(hud) || !hud.Visible))
 			return;
-		Events.Instance?.EmitSignal(Events.SignalName.ShowMessage, line, Duration);
+		Warp(line);
+	}
+
+	// The time rupture's ripple (net/time_rupture.gdshader), swelling and fading, with the line coming up in the middle
+	// of the screen as it peaks and staying a while after.
+	private void Warp(string line)
+	{
+		var layer = new CanvasLayer { Name = "PartnerWarp", Layer = 15 };
+		AddChild(layer);
+		var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://net/time_rupture.gdshader") };
+		var ripple = new ColorRect { Material = material, MouseFilter = Control.MouseFilterEnum.Ignore };
+		ripple.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		layer.AddChild(ripple);
+
+		var label = new Label
+		{
+			Text = line,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center,
+			AutowrapMode = TextServer.AutowrapMode.WordSmart,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Modulate = Colors.Transparent,
+		};
+		label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		label.AddThemeFontOverride("font", new SystemFont { FontNames = new[] { "Cinzel", "Trajan Pro", "Georgia", "Times New Roman", "serif" } });
+		label.AddThemeFontSizeOverride("font_size", 40);
+		label.AddThemeColorOverride("font_color", new Color(0.95f, 0.88f, 0.7f));
+		label.AddThemeColorOverride("font_outline_color", new Color(0.08f, 0.05f, 0.02f));
+		label.AddThemeConstantOverride("outline_size", 8);
+		layer.AddChild(label);
+
+		Tween tween = CreateTween();
+		tween.TweenMethod(Callable.From<float>(k => material.SetShaderParameter("strength", Mathf.Sin(k * Mathf.Pi) * 0.7f)), 0f, 1f, WarpTime);
+		tween.Parallel().TweenProperty(label, "modulate:a", 1f, WarpTime * 0.6f).SetDelay(WarpTime * 0.3f);
+		tween.TweenInterval(Duration);
+		tween.TweenProperty(label, "modulate:a", 0f, 0.8f);
+		tween.TweenCallback(Callable.From(layer.QueueFree));
 	}
 }

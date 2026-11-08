@@ -22,7 +22,13 @@ public partial class GameState : Node
 	public IReadOnlyDictionary<long, PlayerInfo> Players => _players;
 	public Era LocalEra => _players.TryGetValue(Multiplayer.GetUniqueId(), out PlayerInfo info) ? info.Era : Era.Present;
 	public bool IsRunning { get; private set; }
+	// Cutscenes pause the timer for everyone: this machine's own pauses, and (on the host) which peers have one going.
+	// The host's clock is the only real one; it's sent out a few times a second so both players see the same time.
 	private int _timerPauseCount;
+	private readonly HashSet<long> _pausedPeers = new();
+	private bool _hostPaused;
+	private float _timeSyncIn;
+	private const float TimeSyncInterval = 0.25f;
 	// Testing: the game starts with just the local player (net/Session.cs `--solo`).
 	public bool Solo { get; set; }
 	public double ElapsedSeconds { get; private set; }
@@ -47,12 +53,81 @@ public partial class GameState : Node
 
 	public override void _Process(double delta)
 	{
-		if (IsRunning && _timerPauseCount == 0)
+		if (!IsRunning)
+			return;
+		bool online = Multiplayer.HasMultiplayerPeer() && Multiplayer.MultiplayerPeer is not OfflineMultiplayerPeer;
+		if (!online || Multiplayer.IsServer())
+		{
+			if (_pausedPeers.Count == 0 && _timerPauseCount == 0)
+				ElapsedSeconds += delta;
+			_timeSyncIn -= (float)delta;
+			if (online && _timeSyncIn <= 0f)
+				SendTime();
+			return;
+		}
+		// Between the host's updates the client's copy runs on by itself, stopping straight away for its own cutscenes.
+		if (!_hostPaused && _timerPauseCount == 0)
 			ElapsedSeconds += delta;
 	}
 
-	public void PauseTimer() => _timerPauseCount++;
-	public void ResumeTimer() => _timerPauseCount = Mathf.Max(0, _timerPauseCount - 1);
+	public bool IsTimerPaused => _timerPauseCount > 0 || _pausedPeers.Count > 0 || _hostPaused;
+
+	// Called by a cutscene on whichever machine plays it; the timer stops for both players until it's resumed.
+	public void PauseTimer()
+	{
+		_timerPauseCount++;
+		if (_timerPauseCount == 1)
+			TellHostPaused(true);
+	}
+
+	public void ResumeTimer()
+	{
+		if (_timerPauseCount == 0)
+			return;
+		_timerPauseCount--;
+		if (_timerPauseCount == 0)
+			TellHostPaused(false);
+	}
+
+	private void TellHostPaused(bool paused)
+	{
+		long me = Multiplayer.GetUniqueId();
+		if (Multiplayer.IsServer() || !Multiplayer.HasMultiplayerPeer() || Multiplayer.MultiplayerPeer is OfflineMultiplayerPeer)
+			SetPeerPaused(me, paused);
+		else
+			RpcId(1, MethodName.RequestPause, paused);
+	}
+
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	private void RequestPause(bool paused)
+	{
+		if (Multiplayer.IsServer())
+			SetPeerPaused(Multiplayer.GetRemoteSenderId(), paused);
+	}
+
+	// Host only.
+	private void SetPeerPaused(long peer, bool paused)
+	{
+		if (paused)
+			_pausedPeers.Add(peer);
+		else
+			_pausedPeers.Remove(peer);
+		SendTime();
+	}
+
+	private void SendTime()
+	{
+		_timeSyncIn = TimeSyncInterval;
+		if (Multiplayer.HasMultiplayerPeer() && Multiplayer.MultiplayerPeer is not OfflineMultiplayerPeer && Multiplayer.IsServer())
+			Rpc(MethodName.ReceiveTime, ElapsedSeconds, _pausedPeers.Count > 0 || _timerPauseCount > 0);
+	}
+
+	[Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Unreliable)]
+	private void ReceiveTime(double elapsedSeconds, bool paused)
+	{
+		ElapsedSeconds = elapsedSeconds;
+		_hostPaused = paused;
+	}
 	public int GetFlag(string key) => _flags.TryGetValue(key, out int value) ? value : 0;
 
 	// Host only. Replicates to every peer, including the host itself.
@@ -101,6 +176,9 @@ public partial class GameState : Node
 		if (!_players.Remove(id))
 			return;
 		_playerNodes.Remove(id);
+		// A player who leaves mid-cutscene doesn't hold the timer for ever.
+		if (_pausedPeers.Remove(id))
+			SendTime();
 		EmitSignal(SignalName.PlayerLeft, id);
 	}
 
@@ -113,6 +191,8 @@ public partial class GameState : Node
 		IsRunning = false;
 		ElapsedSeconds = 0;
 		_timerPauseCount = 0;
+		_pausedPeers.Clear();
+		_hostPaused = false;
 	}
 
 	// A player joining mid-game needs the flags that were already set.

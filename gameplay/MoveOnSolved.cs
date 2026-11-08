@@ -95,8 +95,13 @@ public partial class MoveOnSolved : Node
 		_started = true;
 		if (Delay > 0f)
 			await ToSignal(GetTree().CreateTimer(Delay), SceneTreeTimer.SignalName.Timeout);
-		if (IsInstanceValid(Target))
-			StartMove();
+		if (!IsInstanceValid(Target))
+			return;
+		// The other player watches it happen too.
+		Vector3 focus = ShotFocus != null ? ShotFocus.GlobalPosition : Target.GlobalPosition;
+		if (PlayCinematic && RevealCinematic.Play(this, Target, focus, Duration, Colors.Black, StartMove))
+			return;
+		StartMove();
 	}
 
 	private void StartMove()

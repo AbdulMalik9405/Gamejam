@@ -197,6 +197,8 @@ public partial class Intro : Node
 		_swapped = false;
 		_time = 0f;
 		_phase = Phase.Playing;
+		// The game clock waits until both players are in their rooms.
+		GameState.Instance.PauseTimer();
 		if (_skip)
 		{
 			SwapToPlayer();
@@ -299,6 +301,8 @@ public partial class Intro : Node
 
 	private void Finish()
 	{
+		if (_phase == Phase.Playing)
+			GameState.Instance.ResumeTimer();
 		_phase = Phase.Done;
 		_message.Visible = false;
 		_backdrop.Visible = false;
