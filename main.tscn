@@ -26,6 +26,8 @@
 [ext_resource type="Script" path="res://gameplay/RoundPillar.cs" id="32_roundpillar"]
 [ext_resource type="Script" path="res://gameplay/BoulderRun.cs" id="33_boulderrun"]
 [ext_resource type="Texture2D" path="res://art/level1old_TX_DesertSand.png" id="34_desert_sand"]
+[ext_resource type="Texture2D" path="res://art/level1old_T_Floor_Old.png" id="35_floor_old"]
+[ext_resource type="Texture2D" path="res://art/level1old_T_Wall_Old.png" id="36_wall_old"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 [ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
@@ -53,6 +55,30 @@ size = Vector3(1.05, 4.88, 35.15)
 
 [sub_resource type="BoxMesh" id="Box_under_dunes_s"]
 size = Vector3(1.05, 4.88, 32.55)
+
+[sub_resource type="StandardMaterial3D" id="Mat_exit_floor"]
+albedo_texture = ExtResource("35_floor_old")
+uv1_triplanar = true
+uv1_world_triplanar = true
+uv1_scale = Vector3(0.5, 0.5, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="Mat_exit_wall"]
+albedo_texture = ExtResource("36_wall_old")
+uv1_triplanar = true
+uv1_world_triplanar = true
+uv1_scale = Vector3(0.35, 0.35, 0.35)
+
+[sub_resource type="BoxMesh" id="Box_exit_floor"]
+size = Vector3(4, 0.6, 2.6)
+
+[sub_resource type="BoxMesh" id="Box_exit_wall"]
+size = Vector3(5, 2.6, 0.4)
+
+[sub_resource type="BoxShape3D" id="Shape_exit_floor"]
+size = Vector3(4, 0.6, 2.6)
+
+[sub_resource type="BoxShape3D" id="Shape_exit_wall"]
+size = Vector3(5, 2.6, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="Mat_desert_sky"]
 shading_mode = 0
@@ -770,6 +796,7 @@ ShapeCenter = Vector3(0.057, 0.003, 0)
 [node name="KeyholeLock" type="Node" parent="." node_paths=PackedStringArray("Keyholes")]
 script = ExtResource("22_keyholelock")
 Keyholes = [NodePath("../Keyholes/Keyhole1"), NodePath("../Keyholes/Keyhole2"), NodePath("../Keyholes/Keyhole3")]
+SolvedMessage = ""
 
 [node name="PassageShotFocus" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.8, 16.264056)
@@ -1167,3 +1194,32 @@ surface_material_override/0 = SubResource("Mat_under_dunes")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.525, 5.44, 33.725)
 mesh = SubResource("Box_under_dunes_s")
 surface_material_override/0 = SubResource("Mat_under_dunes")
+
+[node name="ExitCorridor" type="StaticBody3D" parent="level1old"]
+
+[node name="Floor" type="MeshInstance3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.8, 7.7, 16.3)
+mesh = SubResource("Box_exit_floor")
+surface_material_override/0 = SubResource("Mat_exit_floor")
+
+[node name="FloorShape" type="CollisionShape3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.8, 7.7, 16.3)
+shape = SubResource("Shape_exit_floor")
+
+[node name="WallN" type="MeshInstance3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.31, 9.3, 14.8)
+mesh = SubResource("Box_exit_wall")
+surface_material_override/0 = SubResource("Mat_exit_wall")
+
+[node name="WallNShape" type="CollisionShape3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.31, 9.3, 14.8)
+shape = SubResource("Shape_exit_wall")
+
+[node name="WallS" type="MeshInstance3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.31, 9.3, 17.8)
+mesh = SubResource("Box_exit_wall")
+surface_material_override/0 = SubResource("Mat_exit_wall")
+
+[node name="WallSShape" type="CollisionShape3D" parent="level1old/ExitCorridor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.31, 9.3, 17.8)
+shape = SubResource("Shape_exit_wall")
