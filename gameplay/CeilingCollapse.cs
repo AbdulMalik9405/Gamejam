@@ -74,6 +74,8 @@ public partial class CeilingCollapse : Puzzle
 	private const float PovCut = 3.1f;
 	private const float RunSpeed = 3.3f;
 	private const float RunStopShort = 1.3f;
+	// The crypt's doorway, along the mummy's parent's Z: the run never goes past it.
+	private const float CryptDoorZ = 13.4f;
 	// The trough is the royal coffin's outline measured at this many points along its length.
 	private const int CoffinStations = 24;
 	private const float CoffinWall = 0.035f;
@@ -255,6 +257,22 @@ public partial class CeilingCollapse : Puzzle
 				continue;
 			player.Visible = shown;
 			player.Inventory?.SelectedItem?.SetDeferred(Node3D.PropertyName.Visible, shown);
+		}
+	}
+
+	// From here on the past player is the mummy: their character takes the cutscene mummy's place (and look), and the
+	// cutscene's one goes.
+	private void HandMummyToPastPlayer()
+	{
+		if (GameState.Instance == null || Mummy == null || !IsInstanceValid(Mummy))
+			return;
+		foreach (KeyValuePair<long, PlayerInfo> entry in GameState.Instance.Players)
+		{
+			if (entry.Value.Era != Era.Past || GameState.Instance.GetPlayerNode(entry.Key) is not Player player)
+				continue;
+			player.BecomeMummy(Mummy.Scene, Mummy.GlobalTransform.Orthonormalized(), Mummy.Scale.X);
+			Mummy.QueueFree();
+			return;
 		}
 	}
 
@@ -909,6 +927,10 @@ public partial class CeilingCollapse : Puzzle
 			_camera.GlobalTransform = _explorerCamera.GlobalTransform;
 		target.Y = MummyExit.Y;
 
+		// The run stays in the crypt: an explorer outside it is run at only as far as the doorway.
+		if (target.Z < CryptDoorZ)
+			target = new Vector3(0f, target.Y, CryptDoorZ - RunStopShort);
+
 		_mummyPath.Clear();
 		_mummyPath.Add(Mummy.Position with { Y = MummyExit.Y });
 		// The altar (in the crypt's middle) stands between the coffin and anyone in front of it: go round its side.
@@ -955,7 +977,7 @@ public partial class CeilingCollapse : Puzzle
 		// The explorer's eyes follow it in, with a jolt as it closes.
 		Vector3 head = Mummy.GlobalPosition + Vector3.Up * 1.45f;
 		Basis look = Basis.LookingAt(head - _camera.GlobalPosition, Vector3.Up);
-		_camera.GlobalBasis = _camera.GlobalBasis.Slerp(look, 1f - Mathf.Exp(-7f * dt));
+		_camera.GlobalBasis = _camera.GlobalBasis.Orthonormalized().Slerp(look.Orthonormalized(), 1f - Mathf.Exp(-7f * dt));
 		float near = 1f - Mathf.Clamp((Mummy.GlobalPosition.DistanceTo(_camera.GlobalPosition) - RunStopShort) / 3f, 0f, 1f);
 		float shake = 0.006f + 0.02f * near * near;
 		_camera.HOffset = (_rng.Randf() - 0.5f) * 2f * shake;
@@ -966,6 +988,7 @@ public partial class CeilingCollapse : Puzzle
 	{
 		_cutBack = true;
 		SetPastPlayersShown(true);
+		HandMummyToPastPlayer();
 		_camera.HOffset = 0f;
 		_camera.VOffset = 0f;
 		Camera3D playerCamera = _localPlayer?.GetNodeOrNull<Camera3D>("Camera");

@@ -72,6 +72,15 @@ public partial class Inventory : Node
 		EmitSignal(SignalName.Changed);
 	}
 
+	// Empties the hand; the items stay in the hotbar.
+	public void PutAway()
+	{
+		if (Holstered)
+			return;
+		Holstered = true;
+		EmitSignal(SignalName.Changed);
+	}
+
 	// Scrolls through the items there are, wrapping around, and takes the new one out.
 	public void Cycle(int direction)
 	{

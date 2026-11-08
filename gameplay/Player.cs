@@ -42,6 +42,9 @@ public partial class Player : CharacterBody3D
 	public bool IsLookingAtPickup { get; private set; }
 	// No moving, looking or interacting, e.g. during a cutscene.
 	public bool InputLocked { get; set; }
+	// The past player after the ceiling collapse: they walk the present as the mummy. A mummy only moves and looks:
+	// it can't pick up, place, drop or hold anything (pickups are kept per machine, so it would desync the explorer's).
+	public bool IsMummy { get; private set; }
 	// The rigged character standing in for the capsule once the era is known; null until then.
 	public CharacterModel Character { get; private set; }
 
@@ -134,6 +137,45 @@ public partial class Player : CharacterBody3D
 			TryCreateCharacter();
 	}
 
+	// Turns this player into the mummy, on every machine: its body becomes the mummy (arms out, a running stride). On
+	// the player's own machine it's also moved to `at` (only the owner moves a player; the rest follows by sync), and
+	// whatever it held is put away.
+	public void BecomeMummy(PackedScene mummy, Transform3D at, float scale)
+	{
+		if (IsMummy)
+			return;
+		IsMummy = true;
+		if (Character != null)
+		{
+			RemoveChild(Character);
+			Character.QueueFree();
+		}
+		Character = new CharacterModel
+		{
+			Name = "Character",
+			Scene = mummy,
+			Reach = 1f,
+			WalkSpeed = 3f,
+			StrideLength = 1.5f,
+			LegSwingDegrees = 38f,
+			ArmDownDegrees = 38f,
+			ElbowBendDegrees = 12f,
+			Scale = Vector3.One * scale,
+		};
+		AddChild(Character);
+		_body.Visible = false;
+		if (!_isLocal)
+			return;
+		Character.SetCastShadow(GeometryInstance3D.ShadowCastingSetting.ShadowsOnly);
+		_inventory.PutAway();
+		Vector3 forward = -at.Basis.Z;
+		GlobalPosition = at.Origin;
+		Rotation = new Vector3(0f, Mathf.Atan2(-forward.X, -forward.Z), 0f);
+		_camera.Rotation = Vector3.Zero;
+		Velocity = Vector3.Zero;
+		_promptDirty = true;
+	}
+
 	private void TryCreateCharacter()
 	{
 		if (GameState.Instance == null || !GameState.Instance.Players.TryGetValue(PeerId, out PlayerInfo info))
@@ -164,6 +206,13 @@ public partial class Player : CharacterBody3D
 		{
 			if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
 				Input.MouseMode = Input.MouseModeEnum.Captured;
+			return;
+		}
+
+		if (IsMummy)
+		{
+			if (@event is InputEventMouseMotion mummyLook)
+				Look(mummyLook.Relative);
 			return;
 		}
 
@@ -279,6 +328,16 @@ public partial class Player : CharacterBody3D
 
 	private void UpdateInteractTarget()
 	{
+		if (IsMummy)
+		{
+			if (_prompt != "")
+			{
+				_prompt = "";
+				IsLookingAtPickup = false;
+				EmitSignal(SignalName.InteractTargetChanged, "");
+			}
+			return;
+		}
 		_targetPickup = null;
 		_targetSlot = null;
 		_targetInteractable = null;

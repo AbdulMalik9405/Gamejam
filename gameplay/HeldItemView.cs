@@ -274,15 +274,16 @@ public partial class HeldItemView : Node
 	// with a jolt.
 	private Transform3D Sway(float dt)
 	{
-		Quaternion view = _camera.GlobalBasis.GetRotationQuaternion();
+		// Normalised: after a teleport or a cutscene the camera's basis can come out a hair off, and Slerp refuses that.
+		Quaternion view = _camera.GlobalBasis.GetRotationQuaternion().Normalized();
 		if (!_lagReady)
 		{
 			_lagView = view;
 			_lagReady = true;
 		}
-		_lagView = _lagView.Slerp(view, 1f - Mathf.Exp(-LookSwaySpeed * dt));
+		_lagView = _lagView.Normalized().Slerp(view, 1f - Mathf.Exp(-LookSwaySpeed * dt)).Normalized();
 		// The lagging view as seen from the camera, scaled down and capped.
-		Quaternion trail = Quaternion.Identity.Slerp(view.Inverse() * _lagView, LookSwayAmount);
+		Quaternion trail = Quaternion.Identity.Slerp((view.Inverse() * _lagView).Normalized(), LookSwayAmount);
 		float angle = trail.GetAngle();
 		float maxAngle = Mathf.DegToRad(MaxLookSwayDegrees);
 		if (angle > maxAngle)
