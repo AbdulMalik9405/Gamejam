@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://gameplay/PickupSlot.cs" id="10_pickupslot"]
 [ext_resource type="Script" path="res://gameplay/WallTorch.cs" id="19_walltorch"]
 [ext_resource type="Script" path="res://gameplay/TorchPuzzle.cs" id="20_torchpuzzle"]
+[ext_resource type="Script" path="res://gameplay/Inscription.cs" id="21_inscription"]
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_blue.svg" id="11_icon_blue"]
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_brown.svg" id="12_icon_brown"]
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_green.svg" id="13_icon_green"]
@@ -386,33 +387,24 @@ Puzzle = NodePath("../TorchPuzzle")
 Target = NodePath("../ExitKey")
 StartOffset = Vector3(0, 0, -0.33)
 
-[node name="PastRiddle" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 2.4, 3.774056)
-pixel_size = 0.0018
-modulate = Color(0.92, 0.78, 0.48, 1)
-outline_modulate = Color(0.18, 0.1, 0.03, 1)
-text = "WHAT ONCE BURNED MUST BURN AGAIN
-
-Carry your flame to the walls and light
+[node name="PastRiddle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 2.47, 3.778056)
+script = ExtResource("21_inscription")
+Title = "WHAT ONCE BURNED MUST BURN AGAIN"
+Body = "Carry your flame to the walls and light
 only the fires the past keeps bright,
 not one too many, not one too few.
 In thirty breaths the dark creeps through."
-font_size = 36
-outline_size = 10
 
-[node name="PresentRiddle" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.4, 3.774056)
-pixel_size = 0.0018
-modulate = Color(0.92, 0.78, 0.48, 1)
-outline_modulate = Color(0.18, 0.1, 0.03, 1)
-text = "WHAT ONCE BURNED MUST BURN AGAIN
-
-Carry your flame to the walls and light
+[node name="PresentRiddle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.47, 3.778056)
+script = ExtResource("21_inscription")
+Title = "WHAT ONCE BURNED MUST BURN AGAIN"
+Body = "Carry your flame to the walls and light
 only the fires the past keeps bright,
 not one too many, not one too few.
 In thirty breaths the dark creeps through."
-font_size = 36
-outline_size = 10
+Weathered = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")
