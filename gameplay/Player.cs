@@ -234,7 +234,7 @@ public partial class Player : CharacterBody3D
 		else if (_targetPickup != null)
 			prompt = full ? "Inventory full" : $"Pick up {_targetPickup.ItemName}";
 		else if (_targetSlot != null && selected != null)
-			prompt = $"Place {selected.ItemName}";
+			prompt = _targetSlot.CanHold(selected) ? $"Place {selected.ItemName}" : $"Only a {_targetSlot.Accepts} fits here";
 
 		bool lookingAtPickup = _targetPickup != null && !full;
 		if (prompt == _prompt && lookingAtPickup == IsLookingAtPickup)
@@ -265,7 +265,7 @@ public partial class Player : CharacterBody3D
 		}
 
 		Pickup selected = _inventory.SelectedItem;
-		if (_targetSlot == null || _targetSlot.Occupant != null || selected == null)
+		if (_targetSlot == null || _targetSlot.Occupant != null || !_targetSlot.CanHold(selected))
 			return;
 
 		_inventory.RemoveSelected();

@@ -11,6 +11,11 @@ public partial class PickupSlot : Area3D
 	// Extra hit box margin so an empty slot is easy to aim at.
 	[Export] public float AimPadding { get; set; } = 0.03f;
 	[Export] public Color OutlineColor { get; set; } = new Color(1f, 0.85f, 0.45f, 0.9f);
+	// Only Pickups with this ItemName fit (e.g. "Key" for a keyhole). Empty = anything.
+	[Export] public string Accepts { get; set; } = "";
+	// Centre of the outline and hit box relative to the slot, for when the placed item's origin isn't where
+	// the slot should show (a key's origin is mid-shaft, but its keyhole is on the door).
+	[Export] public Vector3 ShapeCenter { get; set; } = Vector3.Zero;
 	[Export] public float OutlineWidth { get; set; } = 0.012f;
 
 	// itemName is "" when the slot is emptied. Lets puzzles check the arrangement later.
@@ -18,7 +23,6 @@ public partial class PickupSlot : Area3D
 
 	public Pickup Occupant { get; private set; }
 
-	private Vector3 _center = Vector3.Zero;
 	private Node3D _outline;
 
 	public override void _Ready()
@@ -31,7 +35,7 @@ public partial class PickupSlot : Area3D
 		if (!HasCollisionShapeChild())
 		{
 			var box = new BoxShape3D { Size = Size + Vector3.One * (AimPadding * 2f) };
-			AddChild(new CollisionShape3D { Shape = box, Position = _center });
+			AddChild(new CollisionShape3D { Shape = box, Position = ShapeCenter });
 		}
 
 		BuildOutline();
@@ -40,9 +44,11 @@ public partial class PickupSlot : Area3D
 
 	public void ConfigureShape(Vector3 center, Vector3 size)
 	{
-		_center = center;
+		ShapeCenter = center;
 		Size = size;
 	}
+
+	public bool CanHold(Pickup pickup) => pickup != null && (Accepts == "" || pickup.ItemName == Accepts);
 
 	public void SetOccupant(Pickup pickup)
 	{
@@ -65,7 +71,7 @@ public partial class PickupSlot : Area3D
 	// A rectangle frame around the face of the object, drawn across the two largest axes of Size.
 	private void BuildOutline()
 	{
-		_outline = new Node3D { Name = "Outline", Position = _center };
+		_outline = new Node3D { Name = "Outline", Position = ShapeCenter };
 		AddChild(_outline);
 
 		int thin = 0;
