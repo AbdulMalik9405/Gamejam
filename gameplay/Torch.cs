@@ -16,6 +16,8 @@ public partial class Torch : Pickup
 	// so the hand copy can tone both down.
 	[Export] public float FlameEmissionScale { get; set; } = 0.6f;
 	[Export] public float MaxMetallic { get; set; } = 0.3f;
+	// Size relative to the model in the file. Keep Torch.tscn's collision shape and Grip in step when changing it.
+	[Export] public float ModelScale { get; set; } = 0.8f;
 
 	private sealed class Model
 	{
@@ -45,13 +47,14 @@ public partial class Torch : Pickup
 	private void BuildModel()
 	{
 		Model model = GetModel(SourceScene, SourceNode);
+		Transform3D scale = Transform3D.Identity.Scaled(Vector3.One * ModelScale);
 		foreach ((Mesh mesh, Transform3D transform) in model.Parts)
 		{
 			// Right in front of the camera, so a shadow would cover half the screen.
 			AddChild(new MeshInstance3D
 			{
 				Mesh = mesh,
-				Transform = transform,
+				Transform = scale * transform,
 				CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
 				MaterialOverride = HandMaterial(mesh),
 			});
@@ -60,7 +63,7 @@ public partial class Torch : Pickup
 		_light = new OmniLight3D
 		{
 			Name = "Light",
-			Position = model.LightPosition,
+			Position = model.LightPosition * ModelScale,
 			LightColor = model.LightColor,
 			LightEnergy = LightEnergy,
 			OmniRange = LightRange,

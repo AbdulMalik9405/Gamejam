@@ -4,8 +4,8 @@
 [ext_resource type="Texture2D" path="res://placeholders/ui_torch.svg" id="2_icon"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_torch"]
-height = 0.95
-radius = 0.08
+height = 0.76
+radius = 0.065
 
 [node name="Torch" type="RigidBody3D"]
 collision_layer = 4
@@ -16,9 +16,9 @@ Icon = ExtResource("2_icon")
 CreateSlotAtStart = false
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
 shape = SubResource("CylinderShape3D_torch")
 
 [node name="Grip" type="Marker3D" parent="."]
-position = Vector3(0, 0.56, 0)
+position = Vector3(0, 0.38, 0)
 rotation_degrees = Vector3(42, 0, 0)
