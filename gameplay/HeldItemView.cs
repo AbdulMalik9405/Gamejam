@@ -17,9 +17,9 @@ public partial class HeldItemView : Node
 	[Export] public Vector3 ArmOffset { get; set; } = new(0.02f, -0.09f, -0.07f);
 	// Where an item without a Grip sits, relative to the arm's GripPoint (in front of the palm).
 	[Export] public Vector3 PalmOffset { get; set; } = new(0f, 0.02f, -0.18f);
-	// Items without a Grip no bigger than this across (e.g. the pyramids) sit upright on the curled fingers instead:
+	// Items without a Grip no bigger than this across (e.g. the trinkets) sit upright on the curled fingers instead:
 	// the middle of the item's bottom goes this far from the GripPoint, in camera space.
-	[Export] public float SmallItemSize { get; set; } = 0.2f;
+	[Export] public float SmallItemSize { get; set; } = 0.28f;
 	[Export] public Vector3 FistOffset { get; set; } = new(-0.01f, 0.015f, -0.02f);
 	[Export] public float EquipTime { get; set; } = 0.3f;
 	[Export] public float UnequipTime { get; set; } = 0.2f;

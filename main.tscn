@@ -10,14 +10,14 @@
 [ext_resource type="Script" path="res://gameplay/WallTorch.cs" id="19_walltorch"]
 [ext_resource type="Script" path="res://gameplay/TorchPuzzle.cs" id="20_torchpuzzle"]
 [ext_resource type="Script" path="res://gameplay/Inscription.cs" id="21_inscription"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_blue.svg" id="11_icon_blue"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_brown.svg" id="12_icon_brown"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_green.svg" id="13_icon_green"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_orange.svg" id="14_icon_orange"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_pink.svg" id="15_icon_pink"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_purple.svg" id="16_icon_purple"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_red.svg" id="17_icon_red"]
-[ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_yellow.svg" id="18_icon_yellow"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_scarab.png" id="11_icon_blue"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_jar.png" id="12_icon_brown"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_necklace.png" id="13_icon_green"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_bowl.png" id="14_icon_orange"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_cat_statue.png" id="15_icon_pink"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_bracelet.png" id="16_icon_purple"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_goblet.png" id="17_icon_red"]
+[ext_resource type="Texture2D" path="res://placeholders/ui_trinket_ankh.png" id="18_icon_yellow"]
 [ext_resource type="Script" path="res://gameplay/KeyholeLock.cs" id="22_keyholelock"]
 [ext_resource type="Script" path="res://gameplay/MoveOnSolved.cs" id="23_moveonsolved"]
 [ext_resource type="Script" path="res://gameplay/ArtPickup.cs" id="25_artpickup"]
@@ -28,6 +28,8 @@
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 [ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
 [ext_resource type="Script" path="res://gameplay/TrapBridge.cs" id="90_trapbridge"]
+[ext_resource type="Script" path="res://gameplay/TreasurePickup.cs" id="91_treasurepickup"]
+[ext_resource type="Script" path="res://gameplay/TreasureDisplay.cs" id="92_treasuredisplay"]
 [ext_resource type="Script" path="res://gameplay/CharacterModel.cs" id="29_charactermodel"]
 [ext_resource type="PackedScene" path="res://art/egyptian.glb" id="30_egyptian"]
 [ext_resource type="PackedScene" path="res://art/mummy.glb" id="31_mummy"]
@@ -39,21 +41,24 @@ shading_mode = 0
 albedo_color = Color(0.5, 0.7, 0.93, 1)
 cull_mode = 2
 
-[sub_resource type="StandardMaterial3D" id="Mat_shelf"]
-albedo_color = Color(0.58, 0.49, 0.38, 1)
-roughness = 0.9
+[sub_resource type="StandardMaterial3D" id="Mat_table_wood"]
+albedo_color = Color(0.33, 0.2, 0.11, 1)
+roughness = 0.75
 
-[sub_resource type="BoxMesh" id="BoxMesh_shelf1"]
-size = Vector3(0.16, 0.03, 0.76)
+[sub_resource type="BoxMesh" id="BoxMesh_table_top"]
+size = Vector3(0.8, 0.05, 1.7)
 
-[sub_resource type="BoxMesh" id="BoxMesh_shelf2"]
-size = Vector3(0.16, 0.03, 0.58)
+[sub_resource type="BoxMesh" id="BoxMesh_table_apron"]
+size = Vector3(0.7, 0.08, 1.6)
 
-[sub_resource type="BoxMesh" id="BoxMesh_shelf3"]
-size = Vector3(0.16, 0.03, 0.22)
+[sub_resource type="BoxMesh" id="BoxMesh_table_leg"]
+size = Vector3(0.07, 0.73, 0.07)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_table"]
+size = Vector3(0.8, 0.78, 1.7)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_pyramidslot"]
-size = Vector3(0.16, 0.16, 0.16)
+size = Vector3(0.24, 0.26, 0.25)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_nichegap"]
 size = Vector3(0.4, 0.5, 2)
@@ -207,28 +212,28 @@ omni_range = 10.0
 omni_attenuation = 1.5
 
 [node name="PyramidDisplay_Blue" parent="level1" index="55"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.09)
+visible = false
 
 [node name="PyramidDisplay_Brown" parent="level1" index="56"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.27)
+visible = false
 
 [node name="PyramidDisplay_Green" parent="level1" index="57"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.27)
+visible = false
 
 [node name="PyramidDisplay_Orange" parent="level1" index="58"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.09)
+visible = false
 
 [node name="PyramidDisplay_Pink" parent="level1" index="59"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.55, 0.0)
+visible = false
 
 [node name="PyramidDisplay_Purple" parent="level1" index="60"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, -0.18)
+visible = false
 
 [node name="PyramidDisplay_Red" parent="level1" index="61"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.0)
+visible = false
 
 [node name="PyramidDisplay_Yellow" parent="level1" index="62"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.18)
+visible = false
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1117330608]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8482847, 2.1142697, 8.543005)
@@ -284,60 +289,52 @@ script = ExtResource("4_pickup")
 ItemName = "Scarab Block"
 
 [node name="Ruin_Pyramid_Blue-rigid" parent="level1old" index="102"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Blue Pyramid"
-Icon = ExtResource("11_icon_blue")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Brown-rigid" parent="level1old" index="103"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Brown Pyramid"
-Icon = ExtResource("12_icon_brown")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Green-rigid" parent="level1old" index="104"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Green Pyramid"
-Icon = ExtResource("13_icon_green")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Orange-rigid" parent="level1old" index="105"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Orange Pyramid"
-Icon = ExtResource("14_icon_orange")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Pink-rigid" parent="level1old" index="106"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Pink Pyramid"
-Icon = ExtResource("15_icon_pink")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Purple-rigid" parent="level1old" index="107"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Purple Pyramid"
-Icon = ExtResource("16_icon_purple")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Red-rigid" parent="level1old" index="108"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Red Pyramid"
-Icon = ExtResource("17_icon_red")
-CreateSlotAtStart = false
 
 [node name="Ruin_Pyramid_Yellow-rigid" parent="level1old" index="109"]
+visible = false
+collision_layer = 0
+collision_mask = 0
 freeze = true
-script = ExtResource("4_pickup")
-ItemName = "Yellow Pyramid"
-Icon = ExtResource("18_icon_yellow")
-CreateSlotAtStart = false
 
 [node name="Ruin_Torch_1" parent="level1old" index="134"]
 script = ExtResource("19_walltorch")
@@ -456,105 +453,167 @@ OpenWall = true
 [node name="PyramidSlots" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
 
-[node name="Shelf1" type="MeshInstance3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.135, 0)
-mesh = SubResource("BoxMesh_shelf1")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="DiningTable" type="StaticBody3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.15, 0, 0)
 
-[node name="Shelf2" type="MeshInstance3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.335, 0)
-mesh = SubResource("BoxMesh_shelf2")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="Shape" type="CollisionShape3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+shape = SubResource("BoxShape3D_table")
 
-[node name="Shelf3" type="MeshInstance3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.535, 0)
-mesh = SubResource("BoxMesh_shelf3")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="Top" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.755, 0)
+mesh = SubResource("BoxMesh_table_top")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Apron" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.69, 0)
+mesh = SubResource("BoxMesh_table_apron")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg1" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, 0.365, -0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg2" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.365, -0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg3" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, 0.365, 0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg4" type="MeshInstance3D" parent="PyramidSlots/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.365, 0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Plate1" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate2" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate3" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate4" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate5" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate6" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate7" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="Plate8" type="Node3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
 
 [node name="Slot1" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, -0.6)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_1"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot1"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot2" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.09)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, -0.2)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_2"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot3" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.09)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, 0.2)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_3"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot4" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, 0.6)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_4"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot5" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, -0.18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, -0.6)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_5"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot5"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot6" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, -0.2)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_6"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot6"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot7" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, 0.2)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_7"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot7"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot8" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.55, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, 0.6)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_8"
-Size = Vector3(0.14, 0.02, 0.14)
+Size = Vector3(0.26, 0.02, 0.26)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PyramidSlots/Slot8"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="PyramidPuzzle" type="Node" parent="." node_paths=PackedStringArray("Slots", "Answer")]
 script = ExtResource("8_slotsequence")
 Slots = [NodePath("../PyramidSlots/Slot1"), NodePath("../PyramidSlots/Slot2"), NodePath("../PyramidSlots/Slot3"), NodePath("../PyramidSlots/Slot4"), NodePath("../PyramidSlots/Slot5"), NodePath("../PyramidSlots/Slot6"), NodePath("../PyramidSlots/Slot7"), NodePath("../PyramidSlots/Slot8")]
-Answer = [NodePath("../level1old/Ruin_Pyramid_Brown-rigid"), NodePath("../level1old/Ruin_Pyramid_Blue-rigid"), NodePath("../level1old/Ruin_Pyramid_Orange-rigid"), NodePath("../level1old/Ruin_Pyramid_Green-rigid"), NodePath("../level1old/Ruin_Pyramid_Purple-rigid"), NodePath("../level1old/Ruin_Pyramid_Red-rigid"), NodePath("../level1old/Ruin_Pyramid_Yellow-rigid"), NodePath("../level1old/Ruin_Pyramid_Pink-rigid")]
+Answer = [NodePath("../Trinkets/Trinket_Jar"), NodePath("../Trinkets/Trinket_Scarab"), NodePath("../Trinkets/Trinket_Bowl"), NodePath("../Trinkets/Trinket_Necklace"), NodePath("../Trinkets/Trinket_Bracelet"), NodePath("../Trinkets/Trinket_Goblet"), NodePath("../Trinkets/Trinket_Ankh"), NodePath("../Trinkets/Trinket_CatStatue")]
 
 [node name="PyramidKey" parent="." instance=ExtResource("7_key")]
 transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 203.2, 1.1, 9.678)
@@ -732,26 +791,245 @@ Animate = false
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")
 
+
+[node name="Ruin_EastTable" parent="level1old"]
+visible = false
+
+[node name="StaticBody3D" parent="level1old/Ruin_EastTable"]
+collision_layer = 0
+collision_mask = 0
+
+[node name="Ruin_PyramidStand" parent="level1old"]
+visible = false
+
+[node name="StaticBody3D" parent="level1old/Ruin_PyramidStand"]
+collision_layer = 0
+collision_mask = 0
+
+[node name="EastTable" parent="level1"]
+visible = false
+
+[node name="StaticBody3D" parent="level1/EastTable"]
+collision_layer = 0
+collision_mask = 0
+
+[node name="PyramidStand" parent="level1"]
+visible = false
+
+[node name="StaticBody3D" parent="level1/PyramidStand"]
+collision_layer = 0
+collision_mask = 0
+
+[node name="Trinkets" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
+
+[node name="Trinket_Scarab" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(-0.664553, 0, -0.747241, 0, 1, 0, 0.747241, 0, -0.664553, 4.4, 0.0, 3.9)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Scarab"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Scarab"
+Icon = ExtResource("11_icon_blue")
+CreateSlotAtStart = false
+
+[node name="Trinket_Jar" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(-0.998909, 0, 0.046703, 0, 1, 0, -0.046703, 0, -0.998909, 3.6, 0.845, -0.3)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Jar"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Canopic Jar"
+Icon = ExtResource("12_icon_brown")
+CreateSlotAtStart = false
+
+[node name="Trinket_Necklace" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(-0.583025, 0, 0.812454, 0, 1, 0, -0.812454, 0, -0.583025, -1.4, 0.0, -4.3)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Necklace"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Necklace"
+Icon = ExtResource("13_icon_green")
+CreateSlotAtStart = false
+
+[node name="Trinket_Bowl" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(0.934331, 0, -0.356406, 0, 1, 0, 0.356406, 0, 0.934331, -1.4, -0.5, -1.8)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Bowl"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Golden Bowl"
+Icon = ExtResource("14_icon_orange")
+CreateSlotAtStart = false
+
+[node name="Trinket_CatStatue" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(-0.974693, 0, 0.223548, 0, 1, 0, -0.223548, 0, -0.974693, 5.2, 0.0, 1.9)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_CatStatue"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Cat Statue"
+Icon = ExtResource("15_icon_pink")
+CreateSlotAtStart = false
+
+[node name="Trinket_Bracelet" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(0.898204, 0, -0.43958, 0, 1, 0, 0.43958, 0, 0.898204, 1.6, 0.0, -4.3)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Bracelet"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Bracelet"
+Icon = ExtResource("16_icon_purple")
+CreateSlotAtStart = false
+
+[node name="Trinket_Goblet" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(-0.447444, 0, -0.894312, 0, 1, 0, 0.894312, 0, -0.447444, -5.0, 0.12, 4.2)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Goblet"
+ModelRotationDegrees = Vector3(0, 0, 0)
+ItemName = "Goblet"
+Icon = ExtResource("17_icon_red")
+CreateSlotAtStart = false
+
+[node name="Trinket_Ankh" type="RigidBody3D" parent="Trinkets"]
+transform = Transform3D(0.58346, 0, -0.812142, 0, 1, 0, 0.812142, 0, 0.58346, -4.6, 0.0, -0.5)
+freeze = true
+script = ExtResource("91_treasurepickup")
+MeshName = "Trinket_Ankh"
+ModelRotationDegrees = Vector3(90, 90, 0)
+ItemName = "Ankh"
+Icon = ExtResource("18_icon_yellow")
+CreateSlotAtStart = false
+
+[node name="TrinketDisplay_Jar" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Jar"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Scarab" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Scarab"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Bowl" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Bowl"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Necklace" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.814, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Necklace"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Bracelet" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Bracelet"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Goblet" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Goblet"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
+[node name="TrinketDisplay_Ankh" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Ankh"
+ModelRotationDegrees = Vector3(90, 90, 0)
+
+[node name="TrinketDisplay_CatStatue" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.814, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_CatStatue"
+ModelRotationDegrees = Vector3(0, 0, 0)
+
 [editable path="level1"]
 [editable path="level1old"]
 
-[node name="PastPyramidShelves" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.73, 0, 8.864056)
+[node name="DiningTable" type="StaticBody3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.15, 0, 0)
 
-[node name="Shelf1" type="MeshInstance3D" parent="PastPyramidShelves"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.135, 0)
-mesh = SubResource("BoxMesh_shelf1")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="Shape" type="CollisionShape3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+shape = SubResource("BoxShape3D_table")
 
-[node name="Shelf2" type="MeshInstance3D" parent="PastPyramidShelves"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.335, 0)
-mesh = SubResource("BoxMesh_shelf2")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="Top" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.755, 0)
+mesh = SubResource("BoxMesh_table_top")
+surface_material_override/0 = SubResource("Mat_table_wood")
 
-[node name="Shelf3" type="MeshInstance3D" parent="PastPyramidShelves"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.535, 0)
-mesh = SubResource("BoxMesh_shelf3")
-surface_material_override/0 = SubResource("Mat_shelf")
+[node name="Apron" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.69, 0)
+mesh = SubResource("BoxMesh_table_apron")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg1" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, 0.365, -0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg2" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.365, -0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg3" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, 0.365, 0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="Leg4" type="MeshInstance3D" parent="level1/DiningTable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.365, 0.78)
+mesh = SubResource("BoxMesh_table_leg")
+surface_material_override/0 = SubResource("Mat_table_wood")
+
+[node name="TrinketPlate1" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate2" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate3" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate4" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.97, 0.78, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate5" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, -0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate6" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, -0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate7" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, 0.2)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
+
+[node name="TrinketPlate8" type="Node3D" parent="level1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.33, 0.78, 0.6)
+script = ExtResource("92_treasuredisplay")
+MeshName = "Trinket_Plate_Small"
 
 [node name="PastKeyhole1" type="MeshInstance3D" parent="." node_paths=PackedStringArray("Source")]
 script = ExtResource("26_mirrormesh")

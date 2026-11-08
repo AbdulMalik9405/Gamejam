@@ -20,7 +20,7 @@ public partial class Player : CharacterBody3D
 	// Where the selected item sits, in camera space (right, up, forward is -Z).
 	[Export] public Vector3 HoldOffset { get; set; } = new Vector3(0.25f, -0.2f, -0.6f);
 	[Export] public float DropSpeed { get; set; } = 1.5f;
-	// How far off the crosshair a small pickup or slot (e.g. a pyramid) can be and still be aimed at.
+	// How far off the crosshair a small pickup or slot (e.g. a trinket) can be and still be aimed at.
 	[Export] public float AimAssistRadius { get; set; } = 0.12f;
 	// Ledges up to this high (stairs, slab edges, door sills, the edge of the sunken floor round the sarcophagus) are
 	// stepped up onto without jumping.
@@ -533,7 +533,7 @@ public partial class Player : CharacterBody3D
 	}
 
 	// A held item as the other machine can find it: its scene if it was made from one (the torch, keys), otherwise
-	// its path in the level (pyramids, blocks, the seal), which is the same on both machines.
+	// its path in the level (trinkets, blocks, the seal), which is the same on both machines.
 	private string DescribeHeld(Pickup item)
 	{
 		if (item == null)
