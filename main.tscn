@@ -20,6 +20,7 @@
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_yellow.svg" id="18_icon_yellow"]
 [ext_resource type="Script" path="res://gameplay/KeyholeLock.cs" id="22_keyholelock"]
 [ext_resource type="Script" path="res://gameplay/MoveOnSolved.cs" id="23_moveonsolved"]
+[ext_resource type="PackedScene" path="res://gameplay/Tile.tscn" id="24_tile"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 
@@ -297,6 +298,15 @@ script = ExtResource("19_walltorch")
 [node name="Ruin_Torch_3" parent="level1old" index="136"]
 script = ExtResource("19_walltorch")
 
+[node name="Ruin_Keyhole_1" parent="level1old" index="76"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.31, 0)
+
+[node name="Ruin_Keyhole_2" parent="level1old" index="77"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0)
+
+[node name="Ruin_Keyhole_3" parent="level1old" index="78"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.55, -0.55, 0)
+
 [node name="Ruin_Torch_4" parent="level1old" index="137"]
 script = ExtResource("19_walltorch")
 
@@ -326,12 +336,14 @@ Slots = [NodePath("../level1old/Ruin_SymbolBlock_1_eye-rigid"), NodePath("../lev
 Answer = [NodePath("../level1old/Ruin_SymbolBlock_2_water-rigid"), NodePath("../level1old/Ruin_SymbolBlock_3_ankh-rigid"), NodePath("../level1old/Ruin_SymbolBlock_1_eye-rigid"), NodePath("../level1old/Ruin_SymbolBlock_4_scarab-rigid")]
 
 [node name="Key" parent="." instance=ExtResource("7_key")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 189.29, 0.835, 8.864056)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 189.34, 1.1, 8.05)
 
 [node name="KeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
 script = ExtResource("9_riseonsolved")
 Puzzle = NodePath("../TombPuzzle")
 Target = NodePath("../Key")
+StartOffset = Vector3(0, 0, -0.45)
+OpenWall = true
 
 [node name="PyramidSlots" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
@@ -437,7 +449,7 @@ Torches = [NodePath("../level1old/Ruin_Torch_1"), NodePath("../level1old/Ruin_To
 Answer = [NodePath("../level1old/Ruin_Torch_1"), NodePath("../level1old/Ruin_Torch_2"), NodePath("../level1old/Ruin_Torch_4"), NodePath("../level1old/Ruin_Torch_6"), NodePath("../level1old/Ruin_Torch_8"), NodePath("../level1old/Ruin_Torch_9")]
 
 [node name="ExitKey" parent="." instance=ExtResource("7_key")]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 196.27, 1.1, 3.95)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 198.1, 1.1, 4.05)
 
 [node name="ExitKeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
 script = ExtResource("9_riseonsolved")
@@ -469,7 +481,7 @@ Weathered = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
 
 [node name="Keyhole1" type="Area3D" parent="Keyholes"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.55, 1.637, -5.015)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.95, -5.015)
 script = ExtResource("10_pickupslot")
 Id = "keyhole_1"
 Size = Vector3(0.01, 0.23, 0.16)
@@ -477,7 +489,7 @@ Accepts = "Key"
 ShapeCenter = Vector3(0.057, 0.003, 0)
 
 [node name="Keyhole2" type="Area3D" parent="Keyholes"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.637, -5.015)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.52, -5.015)
 script = ExtResource("10_pickupslot")
 Id = "keyhole_2"
 Size = Vector3(0.01, 0.23, 0.16)
@@ -485,7 +497,7 @@ Accepts = "Key"
 ShapeCenter = Vector3(0.057, 0.003, 0)
 
 [node name="Keyhole3" type="Area3D" parent="Keyholes"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.55, 1.637, -5.015)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.09, -5.015)
 script = ExtResource("10_pickupslot")
 Id = "keyhole_3"
 Size = Vector3(0.01, 0.23, 0.16)
@@ -504,6 +516,22 @@ script = ExtResource("23_moveonsolved")
 Puzzle = NodePath("../KeyholeLock")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
+DoneMessage = "Take the tile from the gold coffin and place it on the table in the new room."
+
+[node name="Tile" parent="." instance=ExtResource("24_tile")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 196.27, 3, 28.562)
+
+[node name="TileSlot" type="Area3D" parent="."]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 196.27, 2.497, 25.564)
+script = ExtResource("10_pickupslot")
+Id = "altar_tile"
+Size = Vector3(0.03, 0.23, 0.23)
+Accepts = "Tile"
+
+[node name="TilePuzzle" type="Node" parent="." node_paths=PackedStringArray("Slots", "Answer")]
+script = ExtResource("8_slotsequence")
+Slots = [NodePath("../TileSlot")]
+Answer = [NodePath("../Tile")]
 
 [node name="NicheGapFill_East" type="StaticBody3D" parent="level1"]
 
