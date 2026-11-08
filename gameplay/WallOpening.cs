@@ -5,6 +5,8 @@ namespace Gamejam.Gameplay;
 // A small carved niche on the wall behind a hidden reward, built by RiseOnSolved when OpenWall is on. When the
 // reward is revealed, the niche's stone hatch sinks and slides up into the lintel, then a ledge carrying the reward
 // slides out of the dark opening. Uses the wall's own material so it looks cut into it.
+// It can also be placed in a level on its own (no Reward), facing Outward, as a closed niche that never opens, e.g.
+// so the other era's room has the same niches.
 public partial class WallOpening : Node3D
 {
 	private static readonly Vector2 OpeningSize = new(0.32f, 0.16f);
@@ -20,12 +22,14 @@ public partial class WallOpening : Node3D
 	private const float SinkPart = 0.35f;
 
 	public float OpenTime { get; set; } = 0.7f;
+	// Placed on its own: the direction out of the wall, from this node's position (a point just out from the wall).
+	[Export] public Vector3 Outward { get; set; } = Vector3.Back;
 
 	// Set by RiseOnSolved before adding this to the tree.
 	public Node3D Reward { get; set; }
 	public Vector3 RewardEnd { get; set; }     // global position the reward ends at
 	public Vector3 Travel { get; set; }        // global offset from the hidden start to RewardEnd
-	public float LedgeLength { get; set; } = 0.42f;
+	[Export] public float LedgeLength { get; set; } = 0.42f;
 
 	private MeshInstance3D _hatch;
 	private MeshInstance3D _ledge;
@@ -35,6 +39,11 @@ public partial class WallOpening : Node3D
 
 	public override void _Ready()
 	{
+		if (Reward == null)
+		{
+			RewardEnd = GlobalPosition;
+			Travel = Outward.Normalized() * (LedgeLength + 0.03f);
+		}
 		// The wall is found with a raycast, which needs the level's bodies in the physics world first.
 		Visible = false;
 		SetPhysicsProcess(true);
@@ -139,6 +148,8 @@ public partial class WallOpening : Node3D
 
 	private Vector3 MeshCentre()
 	{
+		if (Reward == null)
+			return RewardEnd;
 		Aabb? bounds = null;
 		foreach (Node node in Reward.FindChildren("*", "MeshInstance3D", true, false))
 		{

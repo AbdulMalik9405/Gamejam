@@ -19,6 +19,11 @@ public partial class Player : CharacterBody3D
 	// Where the selected item sits, in camera space (right, up, forward is -Z).
 	[Export] public Vector3 HoldOffset { get; set; } = new Vector3(0.25f, -0.2f, -0.6f);
 	[Export] public float DropSpeed { get; set; } = 1.5f;
+	// How far off the crosshair a small pickup or slot (e.g. a pyramid) can be and still be aimed at.
+	[Export] public float AimAssistRadius { get; set; } = 0.12f;
+	// Ledges up to this high (stairs, slab edges, door sills, the edge of the sunken floor round the sarcophagus) are
+	// stepped up onto without jumping.
+	[Export] public float MaxStepHeight { get; set; } = 0.55f;
 
 	[Signal] public delegate void InteractTargetChangedEventHandler(string prompt);
 	[Signal] public delegate void InteractedEventHandler(string interactableId);
@@ -42,6 +47,8 @@ public partial class Player : CharacterBody3D
 	private Camera3D _camera;
 	private MeshInstance3D _body;
 	private RayCast3D _interactRay;
+	private ShapeCast3D _aimAssist;
+	private KinematicCollision3D _stepCollision;
 	private Inventory _inventory;
 	private HeldItemView _heldView;
 	private float _gravity;
@@ -83,6 +90,19 @@ public partial class Player : CharacterBody3D
 		_inventory = GetNode<Inventory>("Inventory");
 		_interactRay.TargetPosition = new Vector3(0, 0, -InteractRange);
 		_interactRay.AddException(this);
+		_aimAssist = new ShapeCast3D
+		{
+			Name = "AimAssist",
+			Shape = new SphereShape3D { Radius = AimAssistRadius },
+			CollisionMask = Pickup.InteractablesLayerBit,
+			CollideWithAreas = true,
+			Enabled = false,
+			MaxResults = 8,
+		};
+		_aimAssist.AddException(this);
+		_camera.AddChild(_aimAssist);
+		_stepCollision = new KinematicCollision3D();
+		FloorSnapLength = Mathf.Max(FloorSnapLength, MaxStepHeight);
 		_gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
 
 		_isLocal = IsMultiplayerAuthority();
@@ -160,7 +180,9 @@ public partial class Player : CharacterBody3D
 		velocity.Z = horizontal.Z;
 
 		Velocity = velocity;
+		Vector3 before = GlobalPosition;
 		MoveAndSlide();
+		StepUp(before, horizontal * dt);
 
 		UpdateInteractTarget();
 	}
@@ -169,6 +191,39 @@ public partial class Player : CharacterBody3D
 	{
 		if (_isLocal && _inventory != null)
 			_inventory.Changed -= OnInventoryChanged;
+	}
+
+	// When walking into a low ledge stopped us, tries the move again from MaxStepHeight up and settles onto the
+	// ledge: up, across, then down onto walkable floor.
+	private void StepUp(Vector3 before, Vector3 wanted)
+	{
+		wanted.Y = 0f;
+		if (!IsOnFloor() || !IsOnWall() || wanted.LengthSquared() < 1e-6f)
+			return;
+		Vector3 moved = GlobalPosition - before;
+		moved.Y = 0f;
+		Vector3 missing = wanted - wanted.Normalized() * Mathf.Min(moved.Dot(wanted.Normalized()), wanted.Length());
+		if (missing.LengthSquared() < 1e-6f)
+			return;
+		// A frame's worth of walking is only a centimetre or two, which leaves the round bottom of the body still on
+		// the ledge's edge, too steep to stand on. Stepping at least this far forward clears the edge.
+		const float minStep = 0.15f;
+		if (missing.Length() < minStep)
+			missing = missing.Normalized() * minStep;
+
+		Transform3D from = GlobalTransform;
+		Vector3 up = Vector3.Up * MaxStepHeight;
+		if (TestMove(from, up, _stepCollision))
+			up = _stepCollision.GetTravel();
+		Transform3D raised = from.Translated(up);
+		if (TestMove(raised, missing, _stepCollision))
+			return;
+		Transform3D across = raised.Translated(missing);
+		if (!TestMove(across, Vector3.Down * (up.Y + 0.05f), _stepCollision))
+			return;
+		if (_stepCollision.GetNormal().Dot(Vector3.Up) < Mathf.Cos(FloorMaxAngle))
+			return;
+		GlobalPosition = across.Origin + _stepCollision.GetTravel();
 	}
 
 	private void Look(Vector2 relative)
@@ -218,6 +273,9 @@ public partial class Player : CharacterBody3D
 			}
 		}
 
+		if (_targetInteractable == null && _targetPickup == null && _targetSlot == null)
+			AimAssist();
+
 		Pickup selected = _inventory.SelectedItem;
 		bool full = _inventory.IsFull;
 
@@ -260,6 +318,41 @@ public partial class Player : CharacterBody3D
 		_prompt = prompt;
 		IsLookingAtPickup = lookingAtPickup;
 		EmitSignal(SignalName.InteractTargetChanged, prompt);
+	}
+
+	// A thin sphere cast along the view, stopped where the ray hit, picks the pickup, slot or interactable closest
+	// to the crosshair line, so small things don't need pixel-perfect aim and nothing is reached through a wall.
+	private void AimAssist()
+	{
+		Vector3 eye = _camera.GlobalPosition;
+		Vector3 forward = -_camera.GlobalBasis.Z;
+		float reach = _interactRay.IsColliding() ? eye.DistanceTo(_interactRay.GetCollisionPoint()) : InteractRange;
+		_aimAssist.TargetPosition = new Vector3(0f, 0f, -reach);
+		_aimAssist.ForceShapecastUpdate();
+
+		float best = float.MaxValue;
+		for (int i = 0; i < _aimAssist.GetCollisionCount(); i++)
+		{
+			GodotObject hit = _aimAssist.GetCollider(i);
+			if (hit is not (Pickup or PickupSlot or Interactable) || hit is Pickup { IsHeld: true })
+				continue;
+			var node = (Node3D)hit;
+			Vector3 offset = node.GlobalPosition - eye;
+			float along = offset.Dot(forward);
+			if (along <= 0f || along > InteractRange)
+				continue;
+			float off = (offset - forward * along).LengthSquared();
+			if (off >= best)
+				continue;
+			best = off;
+			_targetInteractable = hit as Interactable;
+			_targetSlot = hit as PickupSlot;
+			_targetPickup = hit as Pickup;
+			if (_targetSlot != null)
+				_targetPickup = _targetSlot.Occupant;
+			else if (_targetPickup != null)
+				_targetSlot = _targetPickup.Slot;
+		}
 	}
 
 	private void Interact()
