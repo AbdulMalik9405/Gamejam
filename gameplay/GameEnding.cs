@@ -33,6 +33,19 @@ public partial class GameEnding : Node
 	public bool HasEnded { get; private set; }
 
 	private Node3D _room;
+	// The lose screen's little scene: both drop to their knees, then the past character gets up and lays into the
+	// explorer, who cowers.
+	private CharacterModel _loser;
+	private CharacterModel _attacker;
+	private Vector3 _attackerStart;
+	private Vector3 _attackFrom;
+	private float _loseTime = -1f;
+	private const float KneelAt = 5f;
+	private const float KneelTime = 0.6f;
+	private const float RiseAt = 6.6f;
+	private const float RiseTime = 0.7f;
+	private const float StompTime = 1.3f;
+	private const float BeatAt = RiseAt + RiseTime + StompTime + 0.2f;
 
 	public override void _Ready()
 	{
@@ -89,6 +102,8 @@ public partial class GameEnding : Node
 
 	public override void _Process(double delta)
 	{
+		if (_loseTime >= 0f && IsInstanceValid(_loser) && IsInstanceValid(_attacker))
+			AnimateLoss((float)delta);
 		// The host keeps the time.
 		GameState state = GameState.Instance;
 		if (!HasEnded && state != null && state.IsRunning && Multiplayer.IsServer() && state.ElapsedSeconds >= state.TimeLimitSeconds)
@@ -174,8 +189,17 @@ public partial class GameEnding : Node
 			else
 				present = player;
 		}
-		AddStandIn(present, false, "Spawn_P1", won);
-		AddStandIn(past, true, "Spawn_P2", won);
+		CharacterModel presentStandIn = AddStandIn(present, false, "Spawn_P1", won);
+		CharacterModel pastStandIn = AddStandIn(past, true, "Spawn_P2", won);
+		if (!won && presentStandIn != null && pastStandIn != null)
+		{
+			_loser = presentStandIn;
+			_attacker = pastStandIn;
+			_attackerStart = pastStandIn.Position;
+			// Beside the explorer, a little behind, close enough to reach them.
+			_attackFrom = presentStandIn.Position + new Vector3(0.55f, 0f, 0.12f);
+			_loseTime = 0f;
+		}
 
 		var camera = new Camera3D { Name = "EndingCamera", Fov = 55f };
 		_room.AddChild(camera);
@@ -356,15 +380,15 @@ public partial class GameEnding : Node
 		}
 	}
 
-	private void AddStandIn(Player player, bool isPast, string circle, bool won)
+	private CharacterModel AddStandIn(Player player, bool isPast, string circle, bool won)
 	{
 		var spot = _room.GetNodeOrNull<Node3D>(circle);
 		if (spot == null)
-			return;
+			return null;
 		CharacterModel source = player?.Character;
 		PackedScene scene = source?.Scene ?? GD.Load<PackedScene>(isPast ? "res://art/egyptian.glb" : "res://art/explorer.glb");
 		if (player == null && GameState.Instance != null && GameState.Instance.Players.Count > 0)
-			return;
+			return null;
 		var standIn = new CharacterModel
 		{
 			Name = isPast ? "PastStandIn" : "PresentStandIn",
@@ -377,6 +401,54 @@ public partial class GameEnding : Node
 		};
 		_room.AddChild(standIn);
 		standIn.Position = spot.Position;
+		return standIn;
+	}
+
+	private void AnimateLoss(float dt)
+	{
+		_loseTime += dt;
+		float t = _loseTime;
+		float kneel = Mathf.Clamp((t - KneelAt) / KneelTime, 0f, 1f);
+		_loser.Kneel = kneel;
+
+		// The past character goes down too, then snaps back up in a rage, drops the shame, and stomps over.
+		float rise = Mathf.Clamp((t - RiseAt) / RiseTime, 0f, 1f);
+		_attacker.Kneel = kneel * (1f - rise);
+		_attacker.Shame = 1f - rise;
+		if (t >= RiseAt + RiseTime)
+		{
+			_attacker.Animate = true;
+			float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - RiseAt - RiseTime) / StompTime, 0f, 1f));
+			_attacker.Position = _attackerStart.Lerp(_attackFrom, k);
+			// Facing the explorer (-X from where it ends up).
+			float yaw = Mathf.Lerp(0f, Mathf.Pi / 2f, Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - RiseAt - RiseTime) / 0.5f, 0f, 1f)));
+			_attacker.Rotation = new Vector3(0f, yaw, 0f);
+		}
+		else if (rise > 0f)
+			// Fists clench and the head comes up as it rises.
+			_attacker.HeadPitchDegrees = 12f * rise;
+
+		if (t < BeatAt)
+			return;
+		// The beating: fists rain down; the explorer cowers on their knees, arms over the head, flinching at each blow.
+		float beat = t - BeatAt;
+		_attacker.Pummel = Mathf.Clamp(beat / 0.3f, 0f, 1f);
+		_attacker.PummelTime = beat;
+		_loser.Shame = 1f - Mathf.Clamp(beat / 0.3f, 0f, 1f);
+		_loser.Shield = Mathf.Clamp(beat / 0.3f, 0f, 1f);
+		// Time since the last fist landed (each fist lands at PummelHit of its swing; the other is half a swing behind).
+		float cycle = beat / CharacterModel.PummelPeriod;
+		float sinceHit = float.MaxValue;
+		foreach (float offset in new[] { 0f, 0.5f })
+		{
+			float since = (cycle + offset - CharacterModel.PummelHit) - Mathf.Floor(cycle + offset - CharacterModel.PummelHit);
+			if (cycle + offset >= CharacterModel.PummelHit)
+				sinceHit = Mathf.Min(sinceHit, since * CharacterModel.PummelPeriod);
+		}
+		float flinch = sinceHit < 1f ? Mathf.Exp(-sinceHit * 12f) : 0f;
+		// Knocked away from the blows (towards -X, away from the attacker) and down.
+		_loser.Rotation = new Vector3(0f, -0.35f, Mathf.DegToRad(9f) * flinch);
+		_loser.HeadPitchDegrees = -14f - 10f * flinch;
 	}
 
 	// Ends the session on this machine and reloads the game, which opens the menu.

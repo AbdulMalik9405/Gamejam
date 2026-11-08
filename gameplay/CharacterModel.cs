@@ -41,6 +41,14 @@ public partial class CharacterModel : Node3D
 	// other rests on the hip, the hips swing and the knees bounce. Shame: head hung, hands on the head, slumped.
 	public float Dance { get; set; }
 	public float Shame { get; set; }
+	// Kneel: down on both knees, body upright (0 = standing, 1 = kneeling). Pummel: beating something in front, both
+	// fists rising over the head and slamming down in turn, PummelTime driving the swings (PummelPeriod a swing each,
+	// a fist landing at PummelHit of the way through it, the other fist half a swing later).
+	public float Kneel { get; set; }
+	public float Pummel { get; set; }
+	public float PummelTime { get; set; }
+	public const float PummelPeriod = 0.62f;
+	public const float PummelHit = 0.78f;
 
 	private Skeleton3D _skeleton;
 	private Node3D _model;
@@ -225,6 +233,10 @@ public partial class CharacterModel : Node3D
 			PoseDance(Mathf.Clamp(Dance, 0f, 1f));
 		if (Shame > 0f)
 			PoseShame(Mathf.Clamp(Shame, 0f, 1f));
+		if (Pummel > 0f)
+			PosePummel(Mathf.Clamp(Pummel, 0f, 1f));
+		if (Kneel > 0f)
+			PoseKneel(Mathf.SmoothStep(0f, 1f, Mathf.Clamp(Kneel, 0f, 1f)));
 
 		RotateBone(_head, Vector3.Right, -Mathf.DegToRad(HeadPitchDegrees));
 		float drift = Mathf.DegToRad(HeadDriftDegrees) * idle;
@@ -290,6 +302,52 @@ public partial class CharacterModel : Node3D
 		RotateBone(upper, Vector3.Back, side * Mathf.DegToRad(150f) * up);
 		RotateBone(upper, Vector3.Right, -Mathf.DegToRad(15f) * up);
 		RotateBone(lower, Vector3.Back, side * Mathf.DegToRad(45f) * up);
+	}
+
+	// Down on both knees: the shins fold back flat along the floor, the thighs stay upright, and the body drops so the
+	// knees rest on the ground; a slight forward slump.
+	private void PoseKneel(float amount)
+	{
+		RotateBone(_leftLowerLeg, Vector3.Right, Mathf.DegToRad(92f) * amount);
+		RotateBone(_rightLowerLeg, Vector3.Right, Mathf.DegToRad(92f) * amount);
+		RotateBone(_spine, Vector3.Right, Mathf.DegToRad(6f) * amount);
+		if (_model != null)
+			_model.Position += new Vector3(0f, -0.45f * amount, 0.08f * amount);
+	}
+
+	// Fists raised over the head and brought down hard, one then the other; the body leans into each blow and twists
+	// towards the arm coming down.
+	private void PosePummel(float amount)
+	{
+		float left = PummelSwing(PummelTime / PummelPeriod, out float leftSlam);
+		float right = PummelSwing(PummelTime / PummelPeriod + 0.5f, out float rightSlam);
+		// Arms forward/up from hanging (negative about the side axis), elbows bent most at the top.
+		RotateBone(_leftUpperArm, Vector3.Right, -Mathf.DegToRad(left) * amount);
+		RotateBone(_rightUpperArm, Vector3.Right, -Mathf.DegToRad(right) * amount);
+		RotateBone(_leftLowerArm, Vector3.Right, -Mathf.DegToRad(Mathf.Lerp(12f, 75f, (left - 55f) / 110f)) * amount);
+		RotateBone(_rightLowerArm, Vector3.Right, -Mathf.DegToRad(Mathf.Lerp(12f, 75f, (right - 55f) / 110f)) * amount);
+		float slam = Mathf.Max(leftSlam, rightSlam);
+		RotateBone(_spine, Vector3.Right, Mathf.DegToRad(6f + 14f * slam) * amount);
+		RotateBone(_chest, Vector3.Up, Mathf.DegToRad(10f) * (leftSlam - rightSlam) * amount);
+		RotateBone(_head, Vector3.Right, Mathf.DegToRad(10f) * amount);
+	}
+
+	// One fist's swing at a point in its cycle (whole number = a fresh swing): how far up it is (degrees forward from
+	// hanging: 55 = struck down in front, 165 = over the head), and how hard it's coming down right now (0..1).
+	private static float PummelSwing(float cycle, out float slam)
+	{
+		float p = cycle - Mathf.Floor(cycle);
+		slam = 0f;
+		if (p < 0.65f)
+			return Mathf.Lerp(55f, 165f, Mathf.SmoothStep(0f, 1f, p / 0.65f));
+		if (p < PummelHit)
+		{
+			float k = (p - 0.65f) / (PummelHit - 0.65f);
+			slam = k;
+			return Mathf.Lerp(165f, 55f, k * k);
+		}
+		slam = 1f - (p - PummelHit) / (1f - PummelHit);
+		return 55f;
 	}
 
 	// Head hung forward, back slumped, both hands clasped on top of the head; now and then a slow shake of the head.
