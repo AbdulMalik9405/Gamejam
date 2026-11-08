@@ -505,6 +505,18 @@ Puzzle = NodePath("../KeyholeLock")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
 
+[node name="DoorFrame_JambE" parent="level1" index="18"]
+transform = Transform3D(1, 0, 0, 0, 0.903226, 0, 0, 0, 1, 1.15, 1.4, -4.9)
+
+[node name="DoorFrame_JambW" parent="level1" index="19"]
+transform = Transform3D(1, 0, 0, 0, 0.903226, 0, 0, 0, 1, -1.15, 1.4, -4.9)
+
+[node name="Ruin_DoorFrame_JambE" parent="level1old" index="60"]
+transform = Transform3D(1, 0, 0, 0, 0.903226, 0, 0, 0, 1, 1.15, 1.4, -4.9)
+
+[node name="Ruin_DoorFrame_JambW" parent="level1old" index="61"]
+transform = Transform3D(1, 0, 0, 0, 0.903226, 0, 0, 0, 1, -1.15, 1.4, -4.9)
+
 [node name="NicheGapFill_East" type="StaticBody3D" parent="level1"]
 
 [node name="Shape" type="CollisionShape3D" parent="level1/NicheGapFill_East"]
