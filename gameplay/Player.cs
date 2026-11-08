@@ -222,6 +222,8 @@ public partial class Player : CharacterBody3D
 		{
 			if (@event is InputEventMouseMotion mummyLook)
 				Look(mummyLook.Relative);
+			else if (@event.IsActionPressed("interact") && _targetInteractable != null)
+				Interact();
 			return;
 		}
 
@@ -339,11 +341,14 @@ public partial class Player : CharacterBody3D
 	{
 		if (IsMummy)
 		{
-			if (_prompt != "")
+			_targetInteractable = _interactRay.IsColliding() && _interactRay.GetCollider() is Interactable { MummyCanUse: true } usable
+				? usable : null;
+			string mummyPrompt = _targetInteractable?.GetPrompt(this) ?? "";
+			if (_prompt != mummyPrompt)
 			{
-				_prompt = "";
+				_prompt = mummyPrompt;
 				IsLookingAtPickup = false;
-				EmitSignal(SignalName.InteractTargetChanged, "");
+				EmitSignal(SignalName.InteractTargetChanged, mummyPrompt);
 			}
 			return;
 		}

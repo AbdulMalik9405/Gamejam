@@ -26,6 +26,7 @@
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 [ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
+[ext_resource type="Script" path="res://gameplay/TrapBridge.cs" id="90_trapbridge"]
 [ext_resource type="Script" path="res://gameplay/CharacterModel.cs" id="29_charactermodel"]
 [ext_resource type="PackedScene" path="res://art/egyptian.glb" id="30_egyptian"]
 [ext_resource type="PackedScene" path="res://art/mummy.glb" id="31_mummy"]
@@ -777,3 +778,7 @@ Outward = Vector3(0, 0, -1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 1.1, 4.05)
 script = ExtResource("27_wallopening")
 Outward = Vector3(0, 0, 1)
+
+[node name="TrapBridge" type="Node" parent="." node_paths=PackedStringArray("Level")]
+script = ExtResource("90_trapbridge")
+Level = NodePath("../level1old")
