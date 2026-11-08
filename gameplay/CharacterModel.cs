@@ -34,12 +34,16 @@ public partial class CharacterModel : Node3D
 	public float Shield { get; set; }
 	// Holds both arms straight out in front (0 = at the sides, 1 = level), like a mummy. Used by cutscenes.
 	public float Reach { get; set; }
+	// Something carried in the right hand (the other player's view of what this one has out): the forearm comes up to
+	// hold it, and it's kept upright in the hand, its "Grip" child (if any) at the palm.
+	public Node3D HeldItem { get; set; }
 
 	private Skeleton3D _skeleton;
 	private Node3D _model;
 	private int _hips = -1, _spine = -1, _chest = -1, _head = -1;
 	private int _leftUpperArm = -1, _leftLowerArm = -1, _rightUpperArm = -1, _rightLowerArm = -1;
 	private int _leftUpperLeg = -1, _leftLowerLeg = -1, _rightUpperLeg = -1, _rightLowerLeg = -1;
+	private int _rightHand = -1;
 	private Vector3 _lastPosition;
 	private bool _hasLast;
 	private float _phase;
@@ -80,6 +84,7 @@ public partial class CharacterModel : Node3D
 		_leftLowerLeg = _skeleton.FindBone("LeftLowerLeg");
 		_rightUpperLeg = _skeleton.FindBone("RightUpperLeg");
 		_rightLowerLeg = _skeleton.FindBone("RightLowerLeg");
+		_rightHand = _skeleton.FindBone("RightHand");
 		Pose(0f);
 	}
 
@@ -121,12 +126,29 @@ public partial class CharacterModel : Node3D
 		}
 		_amount = Mathf.Lerp(_amount, target, 1f - Mathf.Exp(-10f * dt));
 		Pose(_amount);
+		PlaceHeldItem();
+	}
+
+	private void PlaceHeldItem()
+	{
+		if (HeldItem == null || !IsInstanceValid(HeldItem) || _rightHand < 0)
+			return;
+		Transform3D hand = _skeleton.GlobalTransform * _skeleton.GetBoneGlobalPose(_rightHand);
+		// The palm: a little along the hand from the wrist. Upright, facing where the character faces, leaning forward a
+		// touch, whatever angle the hand is at (without the model's scale, so the item keeps its size).
+		Vector3 palm = hand * new Vector3(0f, 0.07f, 0.02f);
+		Basis upright = GlobalBasis.Orthonormalized() * new Basis(Vector3.Right, Mathf.DegToRad(-12f));
+		Vector3 grip = HeldItem.GetNodeOrNull<Node3D>("Grip")?.Position ?? Vector3.Zero;
+		HeldItem.GlobalTransform = new Transform3D(upright, palm - upright * grip);
 	}
 
 	private void Pose(float walk)
 	{
 		_skeleton.ResetBonePoses();
-		float swing = Mathf.Sin(_phase) * walk;
+		// walk runs 0 (standing) to 1 (walking pace), and on to 1.3 when sprinting.
+		float stride = Mathf.Clamp(walk, 0f, 1f);
+		float sprint = Mathf.Clamp((walk - 1f) / 0.3f, 0f, 1f);
+		float swing = Mathf.Sin(_phase) * stride;
 
 		// Idle, fading out as it starts walking: slow breaths lift the chest, the weight drifts from hip to hip (the
 		// spine leans back the other way so the head stays level), and the head wanders a little.
@@ -137,26 +159,47 @@ public partial class CharacterModel : Node3D
 		RotateBone(_spine, Vector3.Back, -Mathf.DegToRad(SwayDegrees) * 0.8f * sway * idle);
 		RotateBone(_chest, Vector3.Right, -Mathf.DegToRad(BreathDegrees) * breath * idle);
 
-		// Skeleton space: +X is the character's left, +Y up, +Z forward. Positive about X swings a limb backward.
-		RotateBone(_leftUpperLeg, Vector3.Right, Mathf.DegToRad(LegSwingDegrees) * swing);
-		RotateBone(_rightUpperLeg, Vector3.Right, -Mathf.DegToRad(LegSwingDegrees) * swing);
-		// The back leg's knee bends as it lifts.
-		RotateBone(_leftLowerLeg, Vector3.Right, -Mathf.DegToRad(30f) * Mathf.Max(0f, -swing));
-		RotateBone(_rightLowerLeg, Vector3.Right, -Mathf.DegToRad(30f) * Mathf.Max(0f, swing));
+		// Walking: the body dips as each foot passes under it, the hips turn with the stride and the chest turns back
+		// against them. Sprinting: a forward lean (the head stays level), longer strides, higher knees, pumping arms.
+		// Skeleton space: +X is the character's left, +Y up, +Z forward. Positive about X swings a down-pointing limb
+		// backward and tips an up-pointing one (spine, head) forward.
+		if (_model != null)
+			_model.Position = new Vector3(0f, -Mathf.Abs(Mathf.Cos(_phase)) * 0.025f * stride * (1f + sprint), 0f);
+		float twist = Mathf.Sin(_phase) * stride;
+		RotateBone(_hips, Vector3.Up, Mathf.DegToRad(5f) * twist);
+		RotateBone(_spine, Vector3.Up, -Mathf.DegToRad(8f) * twist);
+		RotateBone(_spine, Vector3.Right, Mathf.DegToRad(11f) * sprint);
+		RotateBone(_head, Vector3.Right, -Mathf.DegToRad(7f) * sprint);
+
+		float legSwing = Mathf.DegToRad(LegSwingDegrees) * (1f + 0.45f * sprint);
+		RotateBone(_leftUpperLeg, Vector3.Right, legSwing * swing);
+		RotateBone(_rightUpperLeg, Vector3.Right, -legSwing * swing);
+		// The back leg's knee bends as it lifts (much more when sprinting); the front one stays soft.
+		float knee = Mathf.DegToRad(30f + 40f * sprint);
+		float softKnee = Mathf.DegToRad(6f) * stride;
+		RotateBone(_leftLowerLeg, Vector3.Right, -knee * Mathf.Max(0f, -swing) - softKnee);
+		RotateBone(_rightLowerLeg, Vector3.Right, -knee * Mathf.Max(0f, swing) - softKnee);
 
 		float down = Mathf.DegToRad(ArmDownDegrees);
 		float reach = Mathf.SmoothStep(0f, 1f, Reach);
 		// Reaching arms stay level instead of swinging.
-		float armSwing = Mathf.DegToRad(ArmSwingDegrees) * swing * (1f - reach);
+		float armSwing = Mathf.DegToRad(ArmSwingDegrees) * (1f + 0.6f * sprint) * swing * (1f - reach);
 		float shield = Mathf.SmoothStep(0f, 1f, Shield);
-		// Arms hang at the sides and swing opposite to the legs.
+		bool holding = HeldItem != null && IsInstanceValid(HeldItem);
+		// Arms hang at the sides and swing opposite to the legs; an arm carrying something swings much less.
 		RotateBone(_leftUpperArm, Vector3.Back, -down);
 		RotateBone(_leftUpperArm, Vector3.Right, -armSwing);
 		RotateBone(_rightUpperArm, Vector3.Back, down);
-		RotateBone(_rightUpperArm, Vector3.Right, armSwing);
-		float elbow = Mathf.DegToRad(ElbowBendDegrees);
+		RotateBone(_rightUpperArm, Vector3.Right, armSwing * (holding ? 0.3f : 1f));
+		float elbow = Mathf.DegToRad(ElbowBendDegrees + 55f * sprint);
 		RotateBone(_leftLowerArm, Vector3.Right, -elbow);
 		RotateBone(_rightLowerArm, Vector3.Right, -elbow);
+		// Carrying: the upper arm a little forward and the forearm up, holding the item out in front.
+		if (holding && reach <= 0f && shield <= 0f)
+		{
+			RotateBone(_rightUpperArm, Vector3.Right, -Mathf.DegToRad(20f));
+			RotateBone(_rightLowerArm, Vector3.Right, -Mathf.DegToRad(65f));
+		}
 		if (reach > 0f)
 		{
 			RotateBone(_leftUpperArm, Vector3.Right, -Mathf.DegToRad(85f) * reach);

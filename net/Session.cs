@@ -6,10 +6,11 @@ namespace Gamejam.Net;
 
 // Hosts or joins a 2-player game and spawns each player into their era's map.
 // Root of net/Game.tscn. Test shortcuts: run with user args `--host`, `--host-past` or `--join=<ip>`, or `--solo` /
-// `--solo-past` to play alone (no partner needed), optionally with `--skip-intro` (net/Intro.cs).
+// `--solo-past` to play alone (no partner needed), optionally with `--skip-intro` (net/Intro.cs). `--port=<n>` uses
+// another port than 7777, e.g. to test with two copies while the game is open from the editor.
 public partial class Session : Node
 {
-	public const int Port = 7777;
+	public static int Port { get; private set; } = 7777;
 
 	[Export] public PackedScene PlayerScene { get; set; }
 	// The present tomb is dark, so the present player starts with this in their first hotbar slot.
@@ -231,6 +232,11 @@ public partial class Session : Node
 
 	private void HandleCommandLine()
 	{
+		foreach (string arg in OS.GetCmdlineUserArgs())
+		{
+			if (arg.StartsWith("--port=") && int.TryParse(arg[7..], out int port))
+				Port = port;
+		}
 		foreach (string arg in OS.GetCmdlineUserArgs())
 		{
 			if (arg == "--host")

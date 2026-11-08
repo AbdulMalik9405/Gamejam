@@ -4,16 +4,22 @@ using Godot;
 namespace Gamejam.Net;
 
 // The lobby backdrop and the intro, played locally on each peer. In the lobby the camera sways gently over the
-// intact tomb. Once both players are in: a growing tremor and time rupture, a white flash that softens into the
-// logo, then each player appears at their era's spawn with "Solve the puzzle".
+// intact tomb. Once both players are in, each sees a slow glide round their own era's room; then a time rupture
+// ripples in and, at its height, gives a glimpse of the same spot in the other era, before pulling back into a white
+// flash that softens into the logo; then each player appears at their era's spawn with "Solve the puzzle".
 // Visual only; the one thing it touches is pausing and placing the local player.
 public partial class Intro : Node
 {
 	// Inside the intact (past) tomb, looking north across the room.
 	[Export] public Vector3 CameraPosition { get; set; } = new(-3.73f, 2.2f, 13.36f);
 	[Export] public Vector3 LookTarget { get; set; } = new(-3.73f, 1.0f, 5.86f);
-	[Export] public float SwayDuration { get; set; } = 3.5f;
-	[Export] public float RuptureDuration { get; set; } = 2.0f;
+	// The glide round your own room (each era's room centre; the rooms are laid out alike, 200 m apart), the rupture
+	// building, and the glimpse of the other era.
+	[Export] public Vector3 PastRoomCentre { get; set; } = new(-3.73f, 0f, 8.864f);
+	[Export] public Vector3 PresentRoomCentre { get; set; } = new(196.27f, 0f, 8.864f);
+	[Export] public float SwayDuration { get; set; } = 5.0f;
+	[Export] public float RuptureDuration { get; set; } = 1.5f;
+	[Export] public float PeekDuration { get; set; } = 2.4f;
 	[Export] public float FlashDuration { get; set; } = 0.5f;
 	[Export] public float LogoFadeIn { get; set; } = 1.0f;
 	[Export] public float LogoHold { get; set; } = 1.8f;
@@ -56,6 +62,13 @@ public partial class Intro : Node
 	private Node3D _localPlayer;
 	private Transform3D _baseView;
 	private Phase _phase = Phase.Lobby;
+	private Vector3 _ownRoom;
+	private Vector3 _otherRoom;
+	// The glide round the room, in the room's own space (start and end of the camera and of where it looks).
+	private static readonly Vector3 TourFrom = new(-2.4f, 2.2f, 4.3f);
+	private static readonly Vector3 TourTo = new(2.0f, 1.7f, 1.6f);
+	private static readonly Vector3 TourLookFrom = new(0f, 0.9f, -2.0f);
+	private static readonly Vector3 TourLookTo = new(-0.6f, 0.9f, -3.4f);
 	// Seconds since the intro started.
 	private float _time;
 	// Drives the sway; never reset, so the lobby sway flows straight into the intro.
@@ -99,14 +112,20 @@ public partial class Intro : Node
 
 		_time += dt;
 		float t = _time;
-		float flashStart = SwayDuration + RuptureDuration;
+		float peekStart = SwayDuration + RuptureDuration;
+		float flashStart = peekStart + PeekDuration;
 		float logoStart = flashStart + FlashDuration;
 
 		if (t < logoStart)
 		{
+			// The rupture builds to full, eases a little while the other era shows (rippling the whole time), swells
+			// again as it pulls back, and the flash takes over.
 			float rupture = Mathf.Clamp((t - SwayDuration) / RuptureDuration, 0f, 1f);
+			if (t >= peekStart && t < flashStart)
+				rupture = 1f - 0.4f * Mathf.Sin((t - peekStart) / PeekDuration * Mathf.Pi);
 			float flash = Mathf.Clamp((t - flashStart) / FlashDuration, 0f, 1f);
-			UpdateCamera(t, rupture);
+			bool peeking = t >= peekStart && t < flashStart;
+			UpdateTourCamera(t, rupture, peeking ? _otherRoom : _ownRoom);
 			_rupture.Visible = rupture > 0f;
 			_ruptureMaterial.SetShaderParameter(StrengthParam, rupture);
 			_ruptureMaterial.SetShaderParameter(FlashParam, flash);
@@ -152,6 +171,8 @@ public partial class Intro : Node
 
 		_camera.MakeCurrent();
 		bool present = GameState.Instance.LocalEra == Era.Present;
+		_ownRoom = present ? PresentRoomCentre : PastRoomCentre;
+		_otherRoom = present ? PastRoomCentre : PresentRoomCentre;
 		_subtitle.Text = present ? "You are in the present" : "You are in the past";
 		// The blank first line spaces it off from the subtitle.
 		_tip.Text = "\n" + PresentTip;
@@ -172,6 +193,26 @@ public partial class Intro : Node
 			SwapToPlayer();
 			Finish();
 		}
+	}
+
+	// Gliding across the room (centred on room) with a gentle handheld sway, and the rupture's tremor. The glide
+	// keeps going through the glimpse, so the other era is seen from the same spot.
+	private void UpdateTourCamera(float t, float rupture, Vector3 room)
+	{
+		float total = SwayDuration + RuptureDuration + PeekDuration + FlashDuration;
+		float k = Smooth(t / total);
+		Vector3 position = room + TourFrom.Lerp(TourTo, k);
+		Vector3 target = room + TourLookFrom.Lerp(TourLookTo, k);
+		float yaw = Mathf.Sin(_clock * 0.6f) * 0.03f;
+		float pitch = Mathf.Sin(_clock * 0.85f + 1f) * 0.018f;
+		float roll = Mathf.Sin(_clock * 0.45f) * 0.012f;
+
+		float shake = rupture * rupture * MaxShake;
+		position += new Vector3(GD.Randf() - 0.5f, GD.Randf() - 0.5f, GD.Randf() - 0.5f) * shake;
+		roll += (GD.Randf() - 0.5f) * shake * 0.6f;
+
+		Basis look = Basis.LookingAt(target - position, Vector3.Up);
+		_camera.GlobalTransform = new Transform3D(look * Basis.FromEuler(new Vector3(pitch, yaw, roll)), position);
 	}
 
 	private void UpdateCamera(float t, float rupture)

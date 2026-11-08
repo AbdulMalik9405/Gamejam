@@ -75,6 +75,12 @@ public partial class Player : CharacterBody3D
 	private bool _canMount;
 	private bool _lastCanMount;
 	private Vector3 _mountPoint;
+	// What this player has out, as last told to the other machine ("" = empty hands), and when to repeat it.
+	private string _shownItem = "";
+	private float _resendShown;
+	// On the other machine: the copy of what this player has out, carried by its character.
+	private Node3D _heldCopy;
+	private string _heldCopyOf = "";
 	private Vector3 _mountNormal;
 	private bool _promptDirty = true;
 	private string _prompt = "";
@@ -135,6 +141,8 @@ public partial class Player : CharacterBody3D
 		// The era arrives from net/Session just after this node is ready, so the body is swapped in once it's known.
 		if (Character == null)
 			TryCreateCharacter();
+		if (_isLocal)
+			ShareHeldItem((float)delta);
 	}
 
 	// Turns this player into the mummy, on every machine: its body becomes the mummy (arms out, a running stride). On
@@ -161,6 +169,7 @@ public partial class Player : CharacterBody3D
 			ArmDownDegrees = 38f,
 			ElbowBendDegrees = 12f,
 			Scale = Vector3.One * scale,
+			HeldItem = _heldCopy,
 		};
 		AddChild(Character);
 		_body.Visible = false;
@@ -183,7 +192,7 @@ public partial class Player : CharacterBody3D
 		PackedScene scene = info.Era == Era.Present
 			? PresentCharacter ?? GD.Load<PackedScene>("res://art/explorer.glb")
 			: PastCharacter ?? GD.Load<PackedScene>("res://art/egyptian.glb");
-		Character = new CharacterModel { Name = "Character", Scene = scene };
+		Character = new CharacterModel { Name = "Character", Scene = scene, HeldItem = _heldCopy };
 		AddChild(Character);
 		_body.Visible = false;
 		// Our own body stays out of our camera, but its shadow shows.
@@ -504,6 +513,89 @@ public partial class Player : CharacterBody3D
 
 	// HeldItemView shows, hides and animates the items; here only the prompt can change.
 	private void OnInventoryChanged() => _promptDirty = true;
+
+	// Tells the other machine what's in our hand, when it changes and again every couple of seconds (so a partner
+	// whose copy of us appeared later still finds out).
+	private void ShareHeldItem(float dt)
+	{
+		string item = DescribeHeld(IsMummy ? null : _inventory.SelectedItem);
+		_resendShown -= dt;
+		if (item == _shownItem && _resendShown > 0f)
+			return;
+		_shownItem = item;
+		_resendShown = 2f;
+		if (Multiplayer.HasMultiplayerPeer() && Multiplayer.GetPeers().Length > 0)
+			Rpc(MethodName.ShowHeld, item);
+	}
+
+	// A held item as the other machine can find it: its scene if it was made from one (the torch, keys), otherwise
+	// its path in the level (pyramids, blocks, the seal), which is the same on both machines.
+	private string DescribeHeld(Pickup item)
+	{
+		if (item == null)
+			return "";
+		if (item.SceneFilePath != "")
+			return item.SceneFilePath;
+		Node scene = GetTree().CurrentScene;
+		return scene != null && scene.IsAncestorOf(item) ? "path:" + scene.GetPathTo(item) : "";
+	}
+
+	[Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	private void ShowHeld(string item)
+	{
+		if (item == _heldCopyOf && (item == "" || IsInstanceValid(_heldCopy)))
+			return;
+		_heldCopyOf = item;
+		if (IsInstanceValid(_heldCopy))
+			_heldCopy.QueueFree();
+		_heldCopy = MakeHeldCopy(item);
+		if (_heldCopy != null)
+			AddChild(_heldCopy);
+		if (Character != null)
+			Character.HeldItem = _heldCopy;
+	}
+
+	// Something to carry that looks like the item: a fresh one from its scene (inert: frozen, no collision), or a copy
+	// of the level pickup's meshes (and its grip point).
+	private Node3D MakeHeldCopy(string item)
+	{
+		if (item == "")
+			return null;
+		if (!item.StartsWith("path:"))
+		{
+			if (!ResourceLoader.Exists(item) || GD.Load<PackedScene>(item)?.Instantiate() is not Node3D fresh)
+				return null;
+			fresh.Name = "HeldCopy";
+			if (fresh is RigidBody3D body)
+			{
+				body.Freeze = true;
+				body.CollisionLayer = 0;
+				body.CollisionMask = 0;
+			}
+			// A pickup's own setup would add it back to the interact layer and the pickups group.
+			if (fresh is Pickup pickup)
+			{
+				pickup.CreateSlotAtStart = false;
+				pickup.Ready += () => { pickup.CollisionLayer = 0; pickup.RemoveFromGroup("pickups"); };
+			}
+			return fresh;
+		}
+		if (GetTree().CurrentScene?.GetNodeOrNull<Node3D>(item.Substring(5)) is not Node3D source)
+			return null;
+		var copy = new Node3D { Name = "HeldCopy" };
+		Transform3D toSource = source.GlobalTransform.AffineInverse();
+		foreach (Node node in source.FindChildren("*", "MeshInstance3D", true, false))
+		{
+			var mesh = (MeshInstance3D)node;
+			var part = new MeshInstance3D { Mesh = mesh.Mesh, Transform = toSource * mesh.GlobalTransform };
+			for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
+				part.SetSurfaceOverrideMaterial(i, mesh.GetActiveMaterial(i));
+			copy.AddChild(part);
+		}
+		if (source.GetNodeOrNull<Node3D>("Grip") is Node3D grip)
+			copy.AddChild(new Marker3D { Name = "Grip", Transform = grip.Transform });
+		return copy;
+	}
 
 	// project.godot (Agent A) has no input map yet. Fill in only missing actions so A's map wins once it exists.
 	private static void EnsureDefaultInputActions()

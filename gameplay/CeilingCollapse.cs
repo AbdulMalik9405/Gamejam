@@ -7,7 +7,8 @@ namespace Gamejam.Gameplay;
 
 /// <summary>
 /// The past character's death, which is how the present room's ceiling got its hole and rubble pile. When Trigger is
-/// solved (the tile placed on the crypt's altar), both players watch the past room: the Egyptian walks in as the ground
+/// solved (the tile placed on the crypt's altar), after a moment both players see "Some time long ago...", then the
+/// intact past room, where the Egyptian walks slowly round the sarcophagus, stopping to mourn. Then: he walks in as the ground
 /// rumbles and dust trickles down, looks up, the ceiling above the spot that's open in the present breaks, and the
 /// rubble buries him (he goes limp, a ragdoll). Then it cuts to the same room, where he's laid in the royal coffin on
 /// the floor and its lid swings shut on him. Then to the present's crypt: the royal coffin there rattles and bursts
@@ -29,6 +30,10 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.25f);
 	// Where he walks in from (PastLevel's space), arriving under the hole just before it gives.
 	[Export] public Vector3 WalkFrom { get; set; } = new(3.8f, 0f, -1.7f);
+	// Before that: the title, then a wide shot of the room as he walks round the sarcophagus (PastLevel's space).
+	[Export] public string PreludeTitle { get; set; } = "Some time long ago...";
+	[Export] public Vector3 PreludeCameraPosition { get; set; } = new(-0.4f, 2.3f, 3.7f);
+	[Export] public Vector3 PreludeFocus { get; set; } = new(0f, 0.4f, -1.0f);
 	[Export] public Vector3 CameraPosition { get; set; } = new(0.8f, 1.5f, 0.9f);
 	[Export] public PackedScene VictimScene { get; set; }
 	// The coffin he's laid in: the crypt's royal coffin (its mesh becomes the lid), lying on the floor at
@@ -47,6 +52,11 @@ public partial class CeilingCollapse : Puzzle
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;
+	// The prelude: a pause after the tile is placed, a fade to black, the title, then the room.
+	private const float PreludeDelay = 1.5f;
+	private const float TitleTime = 3.2f;
+	private const float MournWalkSpeed = 0.85f;
+	private const float MournPause = 2.3f;
 	// He walks in (slowing as he hears the rumble), stops, and looks up as it breaks; the camera follows him and
 	// tilts partway up to the ceiling with him.
 	private const float WalkEnd = 1.85f;
@@ -87,6 +97,15 @@ public partial class CeilingCollapse : Puzzle
 	private const int PebbleCount = 14;
 
 	private bool _playing;
+	private bool _inPrelude;
+	private float _preludeTime;
+	private float _preludeShotEnd;
+	private bool _preludeBuilt;
+	private Label _title;
+	private CharacterModel _mourner;
+	private Camera3D _preludeCamera;
+	// His walk round the room: where each leg starts and ends, how long it takes, and whether he stands and mourns.
+	private readonly List<(Vector3 From, Vector3 To, float Time, bool Mourn)> _mournRoute = new();
 	// Trigger was solved on this machine (the present player's), so the passage reward waits on this one.
 	private bool _solvedHere;
 	private float _time = -1f;
@@ -153,8 +172,8 @@ public partial class CeilingCollapse : Puzzle
 			_localPlayer.InputLocked = true;
 		_hud = GetTree().CurrentScene?.GetNodeOrNull<CanvasLayer>("Hud");
 		BuildOverlay();
-		// Fade to black, then cut to the past room.
-		_time = -FadeTime;
+		_inPrelude = true;
+		_preludeTime = 0f;
 	}
 
 	public override void _Process(double delta)
@@ -162,6 +181,11 @@ public partial class CeilingCollapse : Puzzle
 		if (!_playing || _finished)
 			return;
 		float dt = (float)delta;
+		if (_inPrelude)
+		{
+			Prelude(dt);
+			return;
+		}
 		float before = _time;
 		_time += dt;
 		float t = _time;
@@ -211,6 +235,132 @@ public partial class CeilingCollapse : Puzzle
 	}
 
 	private Vector3 Local(Vector3 p) => PastLevel.ToGlobal(p);
+
+	// A beat after the tile goes down, fade to black, the title, then the intact room: he walks slowly round the
+	// sarcophagus, stopping twice to mourn, and heads on towards where he'll stand when it falls.
+	private void Prelude(float dt)
+	{
+		_preludeTime += dt;
+		float p = _preludeTime;
+		float black = PreludeDelay + FadeTime;
+		float shot = black + TitleTime;
+		if (p < black)
+		{
+			_fade.Color = new Color(0f, 0f, 0f, Mathf.Clamp((p - PreludeDelay) / FadeTime, 0f, 1f));
+			return;
+		}
+		if (!_preludeBuilt)
+			BuildPrelude();
+
+		float title = p - black;
+		_title.Modulate = new Color(1f, 1f, 1f, Mathf.Clamp(title / 0.8f, 0f, 1f) * (1f - Mathf.Clamp((title - TitleTime + 0.8f) / 0.8f, 0f, 1f)));
+		if (p < shot)
+		{
+			_fade.Color = Colors.Black;
+			return;
+		}
+		float w = p - shot;
+		_fade.Color = new Color(0f, 0f, 0f, 1f - Mathf.Clamp(w / 0.7f, 0f, 1f));
+		AnimateMourner(w, dt);
+		if (w >= _preludeShotEnd)
+		{
+			// On into the collapse: fade, and cut to him walking in under the ceiling.
+			_inPrelude = false;
+			_time = -FadeTime;
+		}
+	}
+
+	private void BuildPrelude()
+	{
+		_preludeBuilt = true;
+		if (_hud != null)
+			_hud.Visible = false;
+		HidePastPlayers();
+
+		_preludeCamera = new Camera3D { Name = "PreludeCamera", Fov = 52f };
+		AddChild(_preludeCamera);
+		_preludeCamera.GlobalPosition = Local(PreludeCameraPosition);
+		_preludeCamera.LookAt(Local(PreludeFocus), Vector3.Up);
+		_preludeCamera.MakeCurrent();
+
+		// Round the west side of the sunken floor, a stop to mourn facing the sarcophagus, along the north side,
+		// another stop, then off towards the spot under the ceiling.
+		var points = new (Vector3 At, bool Mourn)[]
+		{
+			(new Vector3(-2.25f, 0f, 1.4f), false), (new Vector3(-2.25f, 0f, -0.9f), true),
+			(new Vector3(-0.9f, 0f, -3.4f), false), (new Vector3(0.9f, 0f, -3.4f), true), (WalkFrom, false),
+		};
+		_mournRoute.Clear();
+		_preludeShotEnd = 0f;
+		for (int i = 1; i < points.Length; i++)
+		{
+			float walk = points[i - 1].At.DistanceTo(points[i].At) / MournWalkSpeed;
+			_mournRoute.Add((points[i - 1].At, points[i].At, walk, false));
+			_preludeShotEnd += walk;
+			if (points[i].Mourn)
+			{
+				_mournRoute.Add((points[i].At, points[i].At, MournPause, true));
+				_preludeShotEnd += MournPause;
+			}
+		}
+
+		var pivot = new Node3D { Name = "Mourner" };
+		PastLevel.AddChild(pivot);
+		pivot.GlobalPosition = Local(points[0].At);
+		_mourner = new CharacterModel { Name = "Egyptian", Scene = VictimScene, Animate = true, WalkSpeed = 1.3f, StrideLength = 0.9f };
+		pivot.AddChild(_mourner);
+		AnimateMourner(0f, 0f);
+	}
+
+	private void AnimateMourner(float w, float dt)
+	{
+		if (_mourner == null)
+			return;
+		var pivot = (Node3D)_mourner.GetParent();
+		float left = w;
+		float mourn = 0f;
+		Vector3 at = _mournRoute[^1].To;
+		Vector3 facing = _mournRoute[^1].To - _mournRoute[^1].From;
+		foreach ((Vector3 from, Vector3 to, float time, bool mourning) in _mournRoute)
+		{
+			if (left > time)
+			{
+				left -= time;
+				continue;
+			}
+			float k = Mathf.Clamp(left / time, 0f, 1f);
+			if (mourning)
+			{
+				at = from;
+				// Turns to the sarcophagus, bows his head and folds his hands, then straightens to walk on.
+				facing = -from;
+				mourn = Mathf.SmoothStep(0f, 1f, Mathf.Clamp(k / 0.25f, 0f, 1f)) * (1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp((k - 0.8f) / 0.2f, 0f, 1f)));
+			}
+			else
+			{
+				// Easing in and out of each stop.
+				at = from.Lerp(to, Mathf.SmoothStep(0f, 1f, k) * 0.35f + k * 0.65f);
+				facing = to - from;
+			}
+			break;
+		}
+		pivot.GlobalPosition = Local(at);
+		facing.Y = 0f;
+		if (facing.LengthSquared() > 0.0001f)
+		{
+			float yaw = Mathf.Atan2(-facing.X, -facing.Z);
+			pivot.Rotation = new Vector3(0f, dt <= 0f ? yaw : Mathf.LerpAngle(pivot.Rotation.Y, yaw, 1f - Mathf.Exp(-4f * dt)), 0f);
+		}
+		_mourner.HeadPitchDegrees = -30f * mourn;
+		_mourner.Reach = 0.22f * mourn;
+
+		// A slow drift across the room, following him with the sarcophagus in the frame.
+		Vector3 chest = pivot.GlobalPosition + Vector3.Up * 1.2f;
+		_preludeCamera.GlobalPosition = Local(PreludeCameraPosition + new Vector3(Mathf.Lerp(-0.8f, 1.2f, Mathf.Clamp(w / _preludeShotEnd, 0f, 1f)), 0f, 0f));
+		Vector3 aim = Local(PreludeFocus).Lerp(chest, 0.7f);
+		Basis look = Basis.LookingAt(aim - _preludeCamera.GlobalPosition, Vector3.Up);
+		_preludeCamera.GlobalBasis = dt <= 0f ? look : _preludeCamera.GlobalBasis.Orthonormalized().Slerp(look, 1f - Mathf.Exp(-2.5f * dt));
+	}
 	private Vector3 HoleCenter => (HoleMin + HoleMax) * 0.5f;
 
 	private void BuildOverlay()
@@ -220,10 +370,29 @@ public partial class CeilingCollapse : Puzzle
 		_fade = new ColorRect { Color = Colors.Transparent, MouseFilter = Control.MouseFilterEnum.Ignore };
 		_fade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		overlay.AddChild(_fade);
+
+		_title = new Label
+		{
+			Text = PreludeTitle,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center,
+			Modulate = Colors.Transparent,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		_title.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		_title.AddThemeFontOverride("font", new SystemFont { FontNames = new[] { "Cinzel", "Trajan Pro", "Georgia", "Times New Roman", "serif" } });
+		_title.AddThemeFontSizeOverride("font_size", 46);
+		_title.AddThemeColorOverride("font_color", new Color(0.93f, 0.86f, 0.7f));
+		overlay.AddChild(_title);
 	}
 
 	private void CutToPast()
 	{
+		// The prelude's stand-in hands over to the collapse's own Egyptian, at the same spot.
+		if (_mourner != null && IsInstanceValid(_mourner))
+			_mourner.GetParent().QueueFree();
+		if (_preludeCamera != null && IsInstanceValid(_preludeCamera))
+			_preludeCamera.QueueFree();
 		if (_hud != null)
 			_hud.Visible = false;
 		HidePastPlayers();
