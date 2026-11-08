@@ -26,6 +26,8 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 HoleMin { get; set; } = new(2.7f, 4.0f, -0.8f);
 	[Export] public Vector3 HoleMax { get; set; } = new(4.3f, 4.4f, 0.8f);
 	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.7f);
+	// Where he walks in from (PastLevel's space), arriving under the hole just before it gives.
+	[Export] public Vector3 WalkFrom { get; set; } = new(3.8f, 0f, -1.7f);
 	[Export] public Vector3 CameraPosition { get; set; } = new(0.8f, 1.5f, 0.9f);
 	[Export] public PackedScene VictimScene { get; set; }
 	// The coffin he's laid in: the crypt's royal coffin (its mesh becomes the lid), lying on the floor at
@@ -40,8 +42,11 @@ public partial class CeilingCollapse : Puzzle
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;
-	private const float LookUpStart = 0.3f;
-	private const float LookUpEnd = 1.8f;
+	// He walks in (slowing as he hears the rumble), stops, and looks up as it breaks; the camera follows him and
+	// tilts partway up to the ceiling with him.
+	private const float WalkEnd = 1.85f;
+	private const float LookUpStart = 1.3f;
+	private const float LookUpEnd = 2.1f;
 	private const float BreakTime = 2.3f;
 	// He goes limp a moment before the slab reaches him: starting the ragdoll with a chunk already inside him would
 	// fling him across the room.
@@ -56,8 +61,9 @@ public partial class CeilingCollapse : Puzzle
 	private const float CoffinEnd = CoffinStart + LidDelay + LidTime + 1.5f;
 	private const float CoffinHalfWidth = 0.33f;
 	private const float CoffinWallHeight = 0.36f;
-	// The lid is the royal coffin flattened to this much of its depth.
-	private const float LidDepthScale = 0.5f;
+	// The lid: a slab this thick, with the royal coffin's figure on it flattened to this much of its depth.
+	private const float LidThickness = 0.05f;
+	private const float ReliefDepthScale = 0.25f;
 	private const int PlugCells = 3;
 	private const int RubbleCount = 26;
 	private const int PebbleCount = 14;
@@ -277,12 +283,13 @@ public partial class CeilingCollapse : Puzzle
 	{
 		_victimPivot = new Node3D { Name = "Victim" };
 		_debris.AddChild(_victimPivot);
-		_victimPivot.GlobalPosition = Local(VictimPosition);
-		Vector3 toCamera = Local(CameraPosition) - _victimPivot.GlobalPosition;
-		toCamera.Y = 0f;
-		_victimPivot.LookAt(_victimPivot.GlobalPosition + toCamera, Vector3.Up);
-		// Animate on for the idle (breathing, shifting his weight); he never walks here.
-		_victim = new CharacterModel { Name = "Egyptian", Scene = VictimScene, Animate = true };
+		_victimPivot.GlobalPosition = Local(WalkFrom);
+		Vector3 heading = Local(VictimPosition) - Local(WalkFrom);
+		heading.Y = 0f;
+		_victimPivot.LookAt(_victimPivot.GlobalPosition + heading, Vector3.Up);
+		// Animate on: the walk cycle follows his movement, and he idles (breathing, shifting his weight) once he stops.
+		// A slow, short-stepped walk.
+		_victim = new CharacterModel { Name = "Egyptian", Scene = VictimScene, Animate = true, WalkSpeed = 1.3f, StrideLength = 0.9f };
 		_victimPivot.AddChild(_victim);
 	}
 
@@ -455,8 +462,13 @@ public partial class CeilingCollapse : Puzzle
 	{
 		if (_victim == null)
 			return;
-		// He hears the rumble, looks up, then throws his arms up as it gives.
-		float look = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - 0.5f) / 0.9f, 0f, 1f));
+		// He walks in, slowing to a stop as the rumble grows, looks up, then throws his arms up as it gives.
+		if (!_fell)
+		{
+			float k = Mathf.Clamp(t / WalkEnd, 0f, 1f);
+			_victimPivot.GlobalPosition = Local(WalkFrom.Lerp(VictimPosition, 1f - (1f - k) * (1f - k)));
+		}
+		float look = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - LookUpStart) / (LookUpEnd - LookUpStart), 0f, 1f));
 		_victim.HeadPitchDegrees = 40f * look * (_fell ? 0.3f : 1f);
 		float shield = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - (BreakTime - 0.4f)) / 0.45f, 0f, 1f));
 		_victim.Shield = _fell ? Mathf.Max(0f, shield * (1f - (t - FallTime) * 2f)) : shield;
@@ -464,13 +476,14 @@ public partial class CeilingCollapse : Puzzle
 
 	private void AnimateCamera(float t)
 	{
-		Vector3 chest = Local(VictimPosition + new Vector3(0f, 1.3f, 0f));
+		// His chest as he walks in; once he's down, where he stood.
+		Vector3 chest = (_victimPivot != null && !_fell ? _victimPivot.GlobalPosition : Local(VictimPosition)) + PastLevel.GlobalBasis * new Vector3(0f, 1.3f, 0f);
 		Vector3 ceiling = Local(new Vector3(HoleCenter.X, HoleMin.Y, HoleCenter.Z));
 		Vector3 ground = Local(VictimPosition + new Vector3(0f, 0.35f, -0.8f));
 		// Up to the cracking ceiling, then follows the slab down onto him.
 		float up = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - LookUpStart) / (LookUpEnd - LookUpStart), 0f, 1f));
 		float down = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - BreakTime - 0.1f) / 0.7f, 0f, 1f));
-		Vector3 target = chest.Lerp(ceiling, up * 0.85f).Lerp(ground, down);
+		Vector3 target = chest.Lerp(ceiling, up * 0.42f).Lerp(ground, down);
 		// A slow push-in.
 		Vector3 from = Local(CameraPosition);
 		Vector3 to = Local(CameraPosition.Lerp(VictimPosition + new Vector3(0f, 1.45f, 0f), 0.22f));
@@ -513,13 +526,15 @@ public partial class CeilingCollapse : Puzzle
 		Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "ceiling_collapse", Local(HoleCenter));
 	}
 
-	// Struck down: he goes limp and slumps backwards (+Z, as he faces -Z), under where the rubble pile will be, and it
-	// lands on him.
+	// Struck down: he goes limp and is knocked down towards the middle of the hole, under where the rubble pile will be,
+	// and it lands on him.
 	private void Fall()
 	{
 		_fell = true;
 		StartDust(_burst, VictimPosition + new Vector3(0f, 0.15f, -0.8f));
-		_victim.StartRagdoll(_victimPivot.GlobalBasis * new Vector3(2f, -10f, 12f));
+		Vector3 toHole = Local(new Vector3(HoleCenter.X, 0f, HoleCenter.Z)) - _victimPivot.GlobalPosition;
+		toHole.Y = 0f;
+		_victim.StartRagdoll(toHole.Normalized() * 12f + Vector3.Down * 10f);
 	}
 
 	// The same room, later: the royal coffin lies open on the floor with him inside, its lid standing up on one side.
@@ -551,23 +566,23 @@ public partial class CeilingCollapse : Puzzle
 		_coffin.AddChild(body);
 		body.Transform = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(90f)), new Vector3(0f, 0.16f, -halfLength + 0.06f));
 
-		// The lid hinges on the +X top edge. Flat, face up, head end towards +Z, resting on the walls when shut.
+		// The lid hinges on the +X top edge: a gold slab the exact size of the box, with the royal coffin's figure
+		// lying on it in low relief (its mesh, flattened), head end towards +Z.
 		_lidHinge = new Node3D { Name = "LidHinge", Position = new Vector3(CoffinHalfWidth, CoffinWallHeight, 0f) };
 		_coffin.AddChild(_lidHinge);
+		AddBox(_lidHinge, gold, new Vector3(CoffinHalfWidth * 2f, LidThickness, halfLength * 2f), new Vector3(-CoffinHalfWidth, LidThickness / 2f, 0f));
 		if (RoyalCoffin?.Mesh != null)
 		{
 			Aabb box = RoyalCoffin.GetAabb();
-			var lid = new MeshInstance3D { Name = "Lid", Mesh = RoyalCoffin.Mesh };
+			var relief = new MeshInstance3D { Name = "Relief", Mesh = RoyalCoffin.Mesh };
 			for (int i = 0; i < RoyalCoffin.Mesh.GetSurfaceCount(); i++)
-				lid.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
-			// Lying flat: its length (Y) runs along +Z and its face (-Z) looks up; its back sits on the walls.
-			var flat = new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(new Vector3(1f, 1f, LidDepthScale));
-			float back = box.End.Z * LidDepthScale;
-			lid.Transform = new Transform3D(flat, new Vector3(-CoffinHalfWidth - box.GetCenter().X, back, -box.GetCenter().Y));
-			_lidHinge.AddChild(lid);
+				relief.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
+			// Fitted inside the slab's edge. Lying flat: its length (Y) runs along +Z and its face (-Z) looks up.
+			var fit = new Vector3((CoffinHalfWidth * 2f - 0.08f) / box.Size.X, (halfLength * 2f - 0.1f) / box.Size.Y, ReliefDepthScale);
+			var flat = new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(fit);
+			relief.Transform = new Transform3D(flat, new Vector3(-CoffinHalfWidth - box.GetCenter().X * fit.X, LidThickness + box.End.Z * fit.Z, -box.GetCenter().Y * fit.Y));
+			_lidHinge.AddChild(relief);
 		}
-		else
-			AddBox(_lidHinge, wood, new Vector3(CoffinHalfWidth * 2f, 0.08f, length), new Vector3(-CoffinHalfWidth, 0.04f, 0f));
 		_lidHinge.Rotation = new Vector3(0f, 0f, -Mathf.DegToRad(LidOpenDegrees));
 
 		_slamDust = (CpuParticles3D)_burst.Duplicate();

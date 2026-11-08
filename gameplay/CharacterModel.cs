@@ -145,16 +145,25 @@ public partial class CharacterModel : Node3D
 		float down = Mathf.DegToRad(ArmDownDegrees);
 		float armSwing = Mathf.DegToRad(ArmSwingDegrees) * swing;
 		float shield = Mathf.SmoothStep(0f, 1f, Shield);
-		// Arms swing opposite to the legs. Raised for shielding: forward and up, elbows bent in front of the face.
-		RotateBone(_leftUpperArm, Vector3.Back, -down * (1f - shield));
-		RotateBone(_leftUpperArm, Vector3.Right, -armSwing - Mathf.DegToRad(150f) * shield);
-		RotateBone(_rightUpperArm, Vector3.Back, down * (1f - shield));
-		RotateBone(_rightUpperArm, Vector3.Right, armSwing - Mathf.DegToRad(150f) * shield);
-		float elbow = Mathf.DegToRad(ElbowBendDegrees) + Mathf.DegToRad(70f) * shield;
+		// Arms hang at the sides and swing opposite to the legs.
+		RotateBone(_leftUpperArm, Vector3.Back, -down);
+		RotateBone(_leftUpperArm, Vector3.Right, -armSwing);
+		RotateBone(_rightUpperArm, Vector3.Back, down);
+		RotateBone(_rightUpperArm, Vector3.Right, armSwing);
+		float elbow = Mathf.DegToRad(ElbowBendDegrees);
 		RotateBone(_leftLowerArm, Vector3.Right, -elbow);
 		RotateBone(_rightLowerArm, Vector3.Right, -elbow);
-		RotateBone(_leftLowerArm, Vector3.Up, -Mathf.DegToRad(60f) * shield);
-		RotateBone(_rightLowerArm, Vector3.Up, Mathf.DegToRad(60f) * shield);
+		// Shielding the head: from hanging at the sides the arms swing up in front (about the shoulder's side axis) and
+		// a little in, and the forearms fold in across above the face.
+		if (shield > 0f)
+		{
+			RotateBone(_leftUpperArm, Vector3.Right, -Mathf.DegToRad(135f) * shield);
+			RotateBone(_leftUpperArm, Vector3.Up, -Mathf.DegToRad(20f) * shield);
+			RotateBone(_rightUpperArm, Vector3.Right, -Mathf.DegToRad(135f) * shield);
+			RotateBone(_rightUpperArm, Vector3.Up, Mathf.DegToRad(20f) * shield);
+			RotateBone(_leftLowerArm, Vector3.Forward, -Mathf.DegToRad(80f) * shield);
+			RotateBone(_rightLowerArm, Vector3.Forward, Mathf.DegToRad(80f) * shield);
+		}
 
 		RotateBone(_head, Vector3.Right, -Mathf.DegToRad(HeadPitchDegrees));
 		float drift = Mathf.DegToRad(HeadDriftDegrees) * idle;
