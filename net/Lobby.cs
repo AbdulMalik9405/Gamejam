@@ -90,7 +90,7 @@ public partial class Lobby : CanvasLayer
 		box.AddChild(new HSeparator());
 
 		box.AddChild(new Label { Text = "Host IP:" });
-		_address = new LineEdit { Text = "127.0.0.1", PlaceholderText = "e.g. 192.168.1.20" };
+		_address = new LineEdit { Text = "100.98.148.121", PlaceholderText = "e.g. 192.168.1.20" };
 		box.AddChild(_address);
 		_joinButton = new Button { Text = "Join" };
 		_joinButton.Pressed += () =>
