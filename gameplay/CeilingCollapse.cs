@@ -9,8 +9,10 @@ namespace Gamejam.Gameplay;
 /// The past character's death, which is how the present room's ceiling got its hole and rubble pile. When Trigger is
 /// solved (the last key turned in the present exit door), both players watch the past room: the ground rumbles, the
 /// Egyptian looks up as dust trickles down, the ceiling above the spot that's open in the present breaks, and the
-/// rubble buries him. The past player stays dead (a black screen), the present player gets their view back, and only
-/// then does this count as solved on their machine, so the passage opening (MoveOnSolved) plays straight after.
+/// rubble buries him (he goes limp, a ragdoll). Then it cuts to the same room, where he's laid in the royal coffin on
+/// the floor and its lid swings shut on him. The past player stays dead (a black screen), the present player gets
+/// their view back, and only then does this count as solved on their machine, so the passage opening (MoveOnSolved)
+/// plays straight after.
 /// </summary>
 public partial class CeilingCollapse : Puzzle
 {
@@ -26,6 +28,13 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.7f);
 	[Export] public Vector3 CameraPosition { get; set; } = new(0.8f, 1.5f, 0.9f);
 	[Export] public PackedScene VictimScene { get; set; }
+	// The coffin he's laid in: the crypt's royal coffin (its mesh becomes the lid), lying on the floor at
+	// CoffinPosition (PastLevel's space, turned by CoffinYawDegrees, head end towards +Z), and where the camera stands
+	// in the coffin's own space.
+	[Export] public MeshInstance3D RoyalCoffin { get; set; }
+	[Export] public Vector3 CoffinPosition { get; set; } = new(-2.75f, 0f, 0f);
+	[Export] public float CoffinYawDegrees { get; set; }
+	[Export] public Vector3 CoffinCameraPosition { get; set; } = new(-1.1f, 1.45f, 0.55f);
 	[Export] public string DeathTitle { get; set; } = "CRUSHED";
 	[Export] public string DeathText { get; set; } = "The ceiling gave way and buried you.\nYour partner must escape alone.";
 
@@ -34,9 +43,21 @@ public partial class CeilingCollapse : Puzzle
 	private const float LookUpStart = 0.3f;
 	private const float LookUpEnd = 1.8f;
 	private const float BreakTime = 2.3f;
-	private const float FallTime = 2.85f;
+	// He goes limp a moment before the slab reaches him: starting the ragdoll with a chunk already inside him would
+	// fling him across the room.
+	private const float FallTime = 2.7f;
 	private const float RubbleEnd = 3.9f;
 	private const float ShotEnd = 7.0f;
+	// The coffin shot, from the cut: the lid starts to swing shut, takes this long, then the shot holds.
+	private const float CoffinStart = ShotEnd + FadeTime;
+	private const float LidDelay = 1.5f;
+	private const float LidTime = 1.3f;
+	private const float LidOpenDegrees = 105f;
+	private const float CoffinEnd = CoffinStart + LidDelay + LidTime + 1.5f;
+	private const float CoffinHalfWidth = 0.33f;
+	private const float CoffinWallHeight = 0.36f;
+	// The lid is the royal coffin flattened to this much of its depth.
+	private const float LidDepthScale = 0.5f;
 	private const int PlugCells = 3;
 	private const int RubbleCount = 26;
 	private const int PebbleCount = 14;
@@ -61,7 +82,10 @@ public partial class CeilingCollapse : Puzzle
 	private CpuParticles3D _burst;
 	private Material _starsMaterial;
 	private Material _stoneMaterial;
-	private bool _broke, _fell, _cutBack, _finished;
+	private bool _broke, _fell, _cutBack, _finished, _inCoffin, _slammed;
+	private Node3D _coffin;
+	private Node3D _lidHinge;
+	private CpuParticles3D _slamDust;
 	private readonly RandomNumberGenerator _rng = new();
 
 	public override void _Ready()
@@ -122,30 +146,38 @@ public partial class CeilingCollapse : Puzzle
 			return;
 		}
 
-		// Fade in after the cut, out at the end.
-		float fadeIn = 1f - Mathf.Clamp(t / FadeTime, 0f, 1f);
-		float fadeOut = Mathf.Clamp((t - ShotEnd) / FadeTime, 0f, 1f);
-		_fade.Color = new Color(0f, 0f, 0f, Mathf.Max(fadeIn, fadeOut));
+		// Each shot fades in after its cut and out at its end.
+		float fade = t < CoffinStart
+			? Mathf.Max(1f - Mathf.Clamp(t / FadeTime, 0f, 1f), Mathf.Clamp((t - ShotEnd) / FadeTime, 0f, 1f))
+			: Mathf.Max(1f - Mathf.Clamp((t - CoffinStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - CoffinEnd) / FadeTime, 0f, 1f));
+		_fade.Color = new Color(0f, 0f, 0f, fade);
 
-		AnimateVictim(t);
-		AnimateCamera(t);
+		if (!_inCoffin)
+		{
+			AnimateVictim(t);
+			AnimateCamera(t);
+		}
 		ReleaseRubble(t);
+		if (!_inCoffin && t >= CoffinStart)
+			CutToCoffin();
+		if (_inCoffin && !_cutBack)
+			AnimateCoffin(t - CoffinStart);
 
 		if (!_broke && t >= BreakTime)
 			Break();
 		if (!_fell && t >= FallTime)
 			Fall();
 
-		if (t >= ShotEnd + FadeTime && !_cutBack)
+		if (t >= CoffinEnd + FadeTime && !_cutBack)
 			CutBack();
 		if (_localIsPast && _cutBack)
 		{
 			// The past player is dead: their screen stays black with a few words.
-			float k = Mathf.Clamp((t - ShotEnd - FadeTime - 0.3f) / 1.2f, 0f, 1f);
+			float k = Mathf.Clamp((t - CoffinEnd - FadeTime - 0.3f) / 1.2f, 0f, 1f);
 			_deathTitle.Modulate = new Color(1f, 1f, 1f, k);
 			_deathText.Modulate = new Color(1f, 1f, 1f, Mathf.Clamp(k * 1.5f - 0.5f, 0f, 1f));
 		}
-		else if (_cutBack && t >= ShotEnd + FadeTime * 2f)
+		else if (_cutBack && t >= CoffinEnd + FadeTime * 2f)
 			Finish();
 	}
 
@@ -249,7 +281,8 @@ public partial class CeilingCollapse : Puzzle
 		Vector3 toCamera = Local(CameraPosition) - _victimPivot.GlobalPosition;
 		toCamera.Y = 0f;
 		_victimPivot.LookAt(_victimPivot.GlobalPosition + toCamera, Vector3.Up);
-		_victim = new CharacterModel { Name = "Egyptian", Scene = VictimScene, Animate = false };
+		// Animate on for the idle (breathing, shifting his weight); he never walks here.
+		_victim = new CharacterModel { Name = "Egyptian", Scene = VictimScene, Animate = true };
 		_victimPivot.AddChild(_victim);
 	}
 
@@ -480,21 +513,101 @@ public partial class CeilingCollapse : Puzzle
 		Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "ceiling_collapse", Local(HoleCenter));
 	}
 
-	// Struck down: he falls onto his side, into where the rubble pile will be, and the rest of it lands on him.
+	// Struck down: he goes limp and slumps backwards (+Z, as he faces -Z), under where the rubble pile will be, and it
+	// lands on him.
 	private void Fall()
 	{
 		_fell = true;
 		StartDust(_burst, VictimPosition + new Vector3(0f, 0.15f, -0.8f));
-		// He faces -Z (towards the camera); a negative turn about his Z axis drops him towards his right (+X).
-		var lying = new Basis(Vector3.Back, Mathf.DegToRad(-86f));
-		Basis start = _victimPivot.Basis;
-		Tween tween = CreateTween().SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-		tween.TweenMethod(Callable.From<float>(k =>
-			_victimPivot.Basis = new Basis(start.GetRotationQuaternion().Slerp((start * lying).GetRotationQuaternion(), k))), 0f, 1f, 0.45f);
-		// Something for the stones to land on.
-		var body = new StaticBody3D { CollisionLayer = Layers.World, CollisionMask = 0 };
-		body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(0.5f, 1.7f, 0.22f) }, Position = new Vector3(0f, 0.9f, 0f) });
-		_victimPivot.AddChild(body);
+		_victim.StartRagdoll(_victimPivot.GlobalBasis * new Vector3(2f, -10f, 12f));
+	}
+
+	// The same room, later: the royal coffin lies open on the floor with him inside, its lid standing up on one side.
+	private void CutToCoffin()
+	{
+		_inCoffin = true;
+		if (_trickle.IsInsideTree())
+			_trickle.Emitting = false;
+		_camera.HOffset = 0f;
+		_camera.VOffset = 0f;
+
+		_coffin = new Node3D { Name = "Coffin" };
+		_debris.AddChild(_coffin);
+		_coffin.GlobalTransform = new Transform3D(PastLevel.GlobalBasis * new Basis(Vector3.Up, Mathf.DegToRad(CoffinYawDegrees)), Local(CoffinPosition));
+
+		Material wood = RoyalCoffin?.GetActiveMaterial(0) ?? _stoneMaterial;
+		Material gold = RoyalCoffin != null && RoyalCoffin.Mesh.GetSurfaceCount() > 1 ? RoyalCoffin.GetActiveMaterial(1) : wood;
+		float length = RoyalCoffin != null ? RoyalCoffin.GetAabb().Size.Y : 2.1f;
+		float halfLength = length * 0.5f - 0.04f;
+		// The open box: a floor and four walls.
+		AddBox(_coffin, wood, new Vector3(CoffinHalfWidth * 2f, 0.04f, halfLength * 2f), new Vector3(0f, 0.02f, 0f));
+		AddBox(_coffin, gold, new Vector3(0.04f, CoffinWallHeight, halfLength * 2f), new Vector3(-CoffinHalfWidth + 0.02f, CoffinWallHeight / 2f, 0f));
+		AddBox(_coffin, gold, new Vector3(0.04f, CoffinWallHeight, halfLength * 2f), new Vector3(CoffinHalfWidth - 0.02f, CoffinWallHeight / 2f, 0f));
+		AddBox(_coffin, gold, new Vector3(CoffinHalfWidth * 2f - 0.08f, CoffinWallHeight, 0.04f), new Vector3(0f, CoffinWallHeight / 2f, -halfLength + 0.02f));
+		AddBox(_coffin, gold, new Vector3(CoffinHalfWidth * 2f - 0.08f, CoffinWallHeight, 0.04f), new Vector3(0f, CoffinWallHeight / 2f, halfLength - 0.02f));
+
+		// Him, on his back, feet towards -Z, face up, arms at his sides.
+		var body = new CharacterModel { Name = "Entombed", Scene = VictimScene, Animate = false, ArmDownDegrees = 46f, ElbowBendDegrees = 6f };
+		_coffin.AddChild(body);
+		body.Transform = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(90f)), new Vector3(0f, 0.16f, -halfLength + 0.06f));
+
+		// The lid hinges on the +X top edge. Flat, face up, head end towards +Z, resting on the walls when shut.
+		_lidHinge = new Node3D { Name = "LidHinge", Position = new Vector3(CoffinHalfWidth, CoffinWallHeight, 0f) };
+		_coffin.AddChild(_lidHinge);
+		if (RoyalCoffin?.Mesh != null)
+		{
+			Aabb box = RoyalCoffin.GetAabb();
+			var lid = new MeshInstance3D { Name = "Lid", Mesh = RoyalCoffin.Mesh };
+			for (int i = 0; i < RoyalCoffin.Mesh.GetSurfaceCount(); i++)
+				lid.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
+			// Lying flat: its length (Y) runs along +Z and its face (-Z) looks up; its back sits on the walls.
+			var flat = new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(new Vector3(1f, 1f, LidDepthScale));
+			float back = box.End.Z * LidDepthScale;
+			lid.Transform = new Transform3D(flat, new Vector3(-CoffinHalfWidth - box.GetCenter().X, back, -box.GetCenter().Y));
+			_lidHinge.AddChild(lid);
+		}
+		else
+			AddBox(_lidHinge, wood, new Vector3(CoffinHalfWidth * 2f, 0.08f, length), new Vector3(-CoffinHalfWidth, 0.04f, 0f));
+		_lidHinge.Rotation = new Vector3(0f, 0f, -Mathf.DegToRad(LidOpenDegrees));
+
+		_slamDust = (CpuParticles3D)_burst.Duplicate();
+		_slamDust.EmissionRingRadius = 0.7f;
+		_slamDust.EmissionRingInnerRadius = 0.3f;
+		_slamDust.Amount = 30;
+		AnimateCoffin(0f);
+	}
+
+	private static void AddBox(Node3D parent, Material material, Vector3 size, Vector3 position)
+	{
+		parent.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size, Material = material }, Position = position });
+	}
+
+	private void AnimateCoffin(float c)
+	{
+		// The lid falls shut faster and faster, lands with a thump and settles with a small bounce.
+		float k = Mathf.Clamp((c - LidDelay) / LidTime, 0f, 1f);
+		float angle = LidOpenDegrees * (1f - k * k);
+		float after = c - LidDelay - LidTime;
+		if (after > 0f)
+			angle = 2.5f * Mathf.Abs(Mathf.Sin(after * 14f)) * Mathf.Exp(-after * 9f);
+		_lidHinge.Rotation = new Vector3(0f, 0f, -Mathf.DegToRad(angle));
+		if (!_slammed && k >= 1f)
+		{
+			_slammed = true;
+			_debris.AddChild(_slamDust);
+			_slamDust.GlobalPosition = _coffin.GlobalPosition + Vector3.Up * 0.1f;
+			_slamDust.Emitting = true;
+			Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "coffin_close", _coffin.GlobalPosition);
+		}
+
+		// Looking down into the coffin from beside it, drifting in slowly.
+		Vector3 from = _coffin.ToGlobal(CoffinCameraPosition);
+		Vector3 to = _coffin.ToGlobal(CoffinCameraPosition * 0.85f + new Vector3(0f, 0f, 0.05f));
+		_camera.GlobalPosition = from.Lerp(to, Mathf.SmoothStep(0f, 1f, c / (CoffinEnd - CoffinStart)));
+		_camera.LookAt(_coffin.ToGlobal(new Vector3(0f, 0.2f, 0.25f)), Vector3.Up);
+		float shake = after > 0f ? Mathf.Lerp(0.035f, 0f, Mathf.Clamp(after / 0.8f, 0f, 1f)) : 0f;
+		_camera.HOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+		_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
 	}
 
 	private void CutBack()
