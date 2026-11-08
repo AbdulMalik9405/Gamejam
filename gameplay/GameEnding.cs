@@ -16,10 +16,10 @@ public partial class GameEnding : Node
 	[Export] public float ScreenTime { get; set; } = 20f;
 	[Export] public float FadeTime { get; set; } = 0.6f;
 	// The win line: a box across the exit stair's middle step, in the present map's (level1old) space.
-	// The top of the exit stair and the landing outside (in the present map's space): the game is won once every player
-	// is in it at the same time.
-	[Export] public Vector3 WinZoneCenter { get; set; } = new Vector3(-26.6f, 7.6f, 16.3f);
-	[Export] public Vector3 WinZoneSize { get; set; } = new Vector3(7.6f, 5f, 2.8f);
+	// Past the boulder at the top of the exit ramp (gameplay/BoulderRun.cs), out on the landing (in the present map's
+	// space): the game is won once every player is in it at the same time.
+	[Export] public Vector3 WinZoneCenter { get; set; } = new Vector3(-30.05f, 9.2f, 16.3f);
+	[Export] public Vector3 WinZoneSize { get; set; } = new Vector3(1.3f, 3.6f, 4.2f);
 	[Export] public string WaitForPartnerMessage { get; set; } = "Wait for your partner at the exit.";
 	// Invisible walls round the landing, so nobody walks off into the desert (in the present map's space).
 	[Export] public Vector3 FenceMin { get; set; } = new Vector3(-30.7f, 6.4f, 14.1f);
