@@ -22,6 +22,7 @@ public partial class GameState : Node
 	public IReadOnlyDictionary<long, PlayerInfo> Players => _players;
 	public Era LocalEra => _players.TryGetValue(Multiplayer.GetUniqueId(), out PlayerInfo info) ? info.Era : Era.Present;
 	public bool IsRunning { get; private set; }
+	private int _timerPauseCount;
 	// Testing: the game starts with just the local player (net/Session.cs `--solo`).
 	public bool Solo { get; set; }
 	public double ElapsedSeconds { get; private set; }
@@ -44,10 +45,12 @@ public partial class GameState : Node
 
 	public override void _Process(double delta)
 	{
-		if (IsRunning)
+		if (IsRunning && _timerPauseCount == 0)
 			ElapsedSeconds += delta;
 	}
 
+	public void PauseTimer() => _timerPauseCount++;
+	public void ResumeTimer() => _timerPauseCount = Mathf.Max(0, _timerPauseCount - 1);
 	public int GetFlag(string key) => _flags.TryGetValue(key, out int value) ? value : 0;
 
 	// Host only. Replicates to every peer, including the host itself.
@@ -107,6 +110,7 @@ public partial class GameState : Node
 		_flags.Clear();
 		IsRunning = false;
 		ElapsedSeconds = 0;
+		_timerPauseCount = 0;
 	}
 
 	// A player joining mid-game needs the flags that were already set.
