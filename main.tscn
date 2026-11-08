@@ -569,7 +569,7 @@ Keyholes = [NodePath("../Keyholes/Keyhole1"), NodePath("../Keyholes/Keyhole2"), 
 [node name="PassageShotFocus" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.8, 16.264056)
 
-[node name="CeilingCollapse" type="Node" parent="." node_paths=PackedStringArray("Trigger", "PastLevel", "PastCeiling", "BrokenCeiling", "RoyalCoffin")]
+[node name="CeilingCollapse" type="Node" parent="." node_paths=PackedStringArray("Trigger", "PastLevel", "PastCeiling", "BrokenCeiling", "RoyalCoffin", "Mummy")]
 script = ExtResource("28_ceilingcollapse")
 Trigger = NodePath("../TilePuzzle")
 PastLevel = NodePath("../level1")
@@ -577,6 +577,7 @@ PastCeiling = NodePath("../level1/Ceiling")
 BrokenCeiling = [NodePath("../level1old/Ruin_Ceiling_1"), NodePath("../level1old/Ruin_Ceiling_2"), NodePath("../level1old/Ruin_Ceiling_3"), NodePath("../level1old/Ruin_Ceiling_4")]
 VictimScene = ExtResource("30_egyptian")
 RoyalCoffin = NodePath("../level1old/Ruin_Crypt_Coffin_Royal")
+Mummy = NodePath("../level1old/RoyalMummy")
 
 [node name="PassageOpener" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target", "ShotFocus")]
 script = ExtResource("23_moveonsolved")
