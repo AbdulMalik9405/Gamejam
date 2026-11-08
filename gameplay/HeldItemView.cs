@@ -4,7 +4,7 @@ namespace Gamejam.Gameplay;
 
 // Shows the explorer's arm (art/explorer_arm.glb) holding the selected hotbar item in front of the local player's
 // camera, and animates both: they rise into view when an item is equipped, drop out of view when it's put away, and
-// `inspect` (Y) twirls the item like the CS karambit inspect. They also sway: trail behind when you turn, bob as you
+// `inspect` (Y) twirls the item like the CS karambit inspect (a torch is tossed up and caught instead). They also sway: trail behind when you turn, bob as you
 // walk. An item with a child Node3D named "Grip" is held so that its grip sits in the arm's GripPoint, at the grip's
 // angle (move or turn the grip to change how the item sits in the hand); others are held in front of the palm.
 public partial class HeldItemView : Node
@@ -14,7 +14,7 @@ public partial class HeldItemView : Node
 	// Where the hand is, in camera space (right, up, forward is -Z), when the arm model is missing.
 	[Export] public Vector3 HoldOffset { get; set; } = new(0.25f, -0.2f, -0.6f);
 	// Nudges the whole arm from where the model puts it, in camera space.
-	[Export] public Vector3 ArmOffset { get; set; } = new(0f, -0.05f, -0.07f);
+	[Export] public Vector3 ArmOffset { get; set; } = new(0.02f, -0.09f, -0.07f);
 	// Where an item without a Grip sits, relative to the arm's GripPoint (in front of the palm).
 	[Export] public Vector3 PalmOffset { get; set; } = new(0f, 0.02f, -0.18f);
 	[Export] public float EquipTime { get; set; } = 0.3f;
@@ -33,6 +33,11 @@ public partial class HeldItemView : Node
 	// After the twirl the hand tips toward you by this much and the item turns to show its side.
 	[Export] public float InspectShowTiltDegrees { get; set; } = 20f;
 	[Export] public float InspectShowTurnDegrees { get; set; } = 90f;
+	// A torch's inspect: thrown up out of the hand, spun end over end, and caught.
+	[Export] public float TossTime { get; set; } = 1.6f;
+	[Export] public float TossHeight { get; set; } = 0.28f;
+	[Export] public int TossSpins { get; set; } = 1;
+	[Export] public Vector3 TossSpinAxis { get; set; } = new(0f, 0f, 1f);
 	// How much of a turn the arm trails behind, how fast it catches up, and the most it can lag.
 	[Export] public float LookSwayAmount { get; set; } = 0.8f;
 	[Export] public float LookSwaySpeed { get; set; } = 8f;
@@ -49,6 +54,13 @@ public partial class HeldItemView : Node
 	private const float CatchEnd = 0.48f;
 	private const float ShowEnd = 0.84f;
 	private const float WindUpRadians = 0.5f;
+	// Toss phases, as fractions of TossTime: dip, flick up and let go, in the air, caught.
+	private const float TossDipEnd = 0.15f;
+	private const float TossRelease = 0.24f;
+	private const float TossCatch = 0.72f;
+	private const float TossDip = 0.04f;
+	private const float TossFlick = 0.03f;
+	private const float CatchDip = 0.05f;
 	// Turns an item's +X face (the glyph side of the wall blocks) toward the camera.
 	private static readonly Basis BlockBasis = new(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0));
 
@@ -57,6 +69,7 @@ public partial class HeldItemView : Node
 	private Inventory _inventory;
 	private Pickup _shown;
 	private Node3D _grip;
+	private bool _toss;
 	private Node3D _arm;
 	// The arm's and the hand's resting poses in camera space, read from the model.
 	private Transform3D _armRest;
@@ -130,7 +143,7 @@ public partial class HeldItemView : Node
 			if (_inspect >= 0f)
 			{
 				_inspect += dt;
-				if (_inspect >= InspectTime)
+				if (_inspect >= (_toss ? TossTime : InspectTime))
 					_inspect = -1f;
 			}
 		}
@@ -145,7 +158,9 @@ public partial class HeldItemView : Node
 				_arm.GlobalTransform = view * hand * _armRest;
 		}
 		if (_shown != null)
-			_shown.GlobalTransform = view * hand * Twirl() * ItemInHand() * InspectTurn();
+			_shown.GlobalTransform = _toss
+				? view * hand * Toss() * ItemInHand()
+				: view * hand * Twirl() * ItemInHand() * InspectTurn();
 	}
 
 	private void BuildArm()
@@ -194,6 +209,7 @@ public partial class HeldItemView : Node
 			_shown.Visible = false;
 		_shown = item;
 		_grip = item?.GetNodeOrNull<Node3D>(GripName);
+		_toss = item is Torch;
 		if (item != null)
 			item.Visible = true;
 	}
@@ -274,7 +290,9 @@ public partial class HeldItemView : Node
 		// Positive tips the item's top toward you, so the forearm behind the hand swings down out of view.
 		var rotation = new Basis(Vector3.Right, Mathf.DegToRad(LoweredTiltDegrees) * lowered);
 
-		if (_inspect >= 0f)
+		if (_inspect >= 0f && _toss)
+			offset += Vector3.Up * TossHandHeight(_inspect / TossTime);
+		else if (_inspect >= 0f)
 		{
 			float p = _inspect / InspectTime;
 			float weight = Mathf.SmoothStep(0f, RaiseEnd, p) * (1f - Mathf.SmoothStep(ShowEnd, 1f, p));
@@ -292,6 +310,41 @@ public partial class HeldItemView : Node
 		if (_inspect < 0f)
 			return Transform3D.Identity;
 		return AroundHand(new Basis(InspectSpinAxis.Normalized(), TwirlAngle(_inspect / InspectTime)), Vector3.Zero);
+	}
+
+	// The hand dips, flicks up to let go, waits, then gives a little as it catches.
+	private static float TossHandHeight(float p)
+	{
+		if (p < TossDipEnd)
+			return -TossDip * Mathf.SmoothStep(0f, 1f, p / TossDipEnd);
+		if (p < TossRelease)
+			return Mathf.Lerp(-TossDip, TossFlick, EaseOut((p - TossDipEnd) / (TossRelease - TossDipEnd)));
+		if (p < TossCatch)
+			return TossFlick * (1f - Mathf.SmoothStep(0f, 1f, (p - TossRelease) / (TossCatch - TossRelease)));
+		float k = (p - TossCatch) / (1f - TossCatch);
+		return -CatchDip * Mathf.Sin(Mathf.Min(k * 1.6f, 1f) * Mathf.Pi) * (1f - k);
+	}
+
+	// The item in the air, relative to the hand: up and back down, spinning steadily, whole turns so it lands as it left.
+	// It straightens out of the hand's tilt while in the air so it spins flat across the screen, instead of swinging
+	// its far end at the camera.
+	private Transform3D Toss()
+	{
+		if (_inspect < 0f)
+			return Transform3D.Identity;
+		float k = Mathf.Clamp((_inspect / TossTime - TossRelease) / (TossCatch - TossRelease), 0f, 1f);
+		if (k <= 0f || k >= 1f)
+			return Transform3D.Identity;
+		float height = 4f * TossHeight * k * (1f - k);
+		float angle = Mathf.Tau * TossSpins * k;
+
+		Vector3 up = ItemInHand().Basis.Y.Normalized();
+		var flat = new Vector3(up.X, up.Y, 0f);
+		Quaternion straighten = Quaternion.Identity;
+		if (flat.LengthSquared() > 0.01f)
+			straighten = Quaternion.Identity.Slerp(new Quaternion(up, flat.Normalized()), Mathf.SmoothStep(0f, 1f, Mathf.Sin(k * Mathf.Pi) * 1.5f));
+		var spin = new Quaternion(TossSpinAxis.Normalized(), angle);
+		return AroundHand(new Basis(spin * straighten), Vector3.Up * height);
 	}
 
 	private Transform3D ItemInHand()

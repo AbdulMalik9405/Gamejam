@@ -20,11 +20,50 @@
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_yellow.svg" id="18_icon_yellow"]
 [ext_resource type="Script" path="res://gameplay/KeyholeLock.cs" id="22_keyholelock"]
 [ext_resource type="Script" path="res://gameplay/MoveOnSolved.cs" id="23_moveonsolved"]
+[ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
+[ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_pyramidslot"]
 size = Vector3(0.16, 0.16, 0.16)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nichegap"]
+size = Vector3(0.4, 0.5, 2)
+
+[sub_resource type="StandardMaterial3D" id="Mat_nichegap_past"]
+albedo_texture = ExtResource("22_floor_past")
+roughness = 0.8
+uv1_scale = Vector3(0.5, 0.5, 0.5)
+uv1_offset = Vector3(0, 0, 1)
+uv1_triplanar = true
+
+[sub_resource type="StandardMaterial3D" id="Mat_nichegap_present"]
+albedo_texture = ExtResource("23_floor_present")
+roughness = 0.95
+uv1_scale = Vector3(0.5, 0.5, 0.5)
+uv1_offset = Vector3(0, 0, 1)
+uv1_triplanar = true
+
+[sub_resource type="PlaneMesh" id="Plane_nichegap_past_e"]
+material = SubResource("Mat_nichegap_past")
+size = Vector2(0.4, 2)
+center_offset = Vector3(6.2, 0, 0)
+
+[sub_resource type="PlaneMesh" id="Plane_nichegap_past_w"]
+material = SubResource("Mat_nichegap_past")
+size = Vector2(0.4, 2)
+center_offset = Vector3(-6.2, 0, 0)
+
+[sub_resource type="PlaneMesh" id="Plane_nichegap_present_e"]
+material = SubResource("Mat_nichegap_present")
+size = Vector2(0.4, 2)
+center_offset = Vector3(6.2, 0, 0)
+
+[sub_resource type="PlaneMesh" id="Plane_nichegap_present_w"]
+material = SubResource("Mat_nichegap_present")
+size = Vector2(0.4, 2)
+center_offset = Vector3(-6.2, 0, 0)
 
 [sub_resource type="Environment" id="Environment_tomb"]
 background_mode = 1
@@ -463,6 +502,42 @@ script = ExtResource("23_moveonsolved")
 Puzzle = NodePath("../KeyholeLock")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
+
+[node name="NicheGapFill_East" type="StaticBody3D" parent="level1"]
+
+[node name="Shape" type="CollisionShape3D" parent="level1/NicheGapFill_East"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, -0.25, 0)
+shape = SubResource("BoxShape3D_nichegap")
+
+[node name="Mesh" type="MeshInstance3D" parent="level1/NicheGapFill_East"]
+mesh = SubResource("Plane_nichegap_past_e")
+
+[node name="NicheGapFill_West" type="StaticBody3D" parent="level1"]
+
+[node name="Shape" type="CollisionShape3D" parent="level1/NicheGapFill_West"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, -0.25, 0)
+shape = SubResource("BoxShape3D_nichegap")
+
+[node name="Mesh" type="MeshInstance3D" parent="level1/NicheGapFill_West"]
+mesh = SubResource("Plane_nichegap_past_w")
+
+[node name="NicheGapFill_East" type="StaticBody3D" parent="level1old"]
+
+[node name="Shape" type="CollisionShape3D" parent="level1old/NicheGapFill_East"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, -0.25, 0)
+shape = SubResource("BoxShape3D_nichegap")
+
+[node name="Mesh" type="MeshInstance3D" parent="level1old/NicheGapFill_East"]
+mesh = SubResource("Plane_nichegap_present_e")
+
+[node name="NicheGapFill_West" type="StaticBody3D" parent="level1old"]
+
+[node name="Shape" type="CollisionShape3D" parent="level1old/NicheGapFill_West"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, -0.25, 0)
+shape = SubResource("BoxShape3D_nichegap")
+
+[node name="Mesh" type="MeshInstance3D" parent="level1old/NicheGapFill_West"]
+mesh = SubResource("Plane_nichegap_present_w")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")
