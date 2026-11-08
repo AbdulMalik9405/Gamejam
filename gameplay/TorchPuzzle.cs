@@ -4,26 +4,18 @@ using Godot.Collections;
 
 namespace Gamejam.Gameplay;
 
-// Light exactly the Answer torches before time runs out. The first torch lit starts the timer;
-// when it runs out unsolved, every torch goes dark again and the next one lit restarts it.
+// Light exactly the Answer torches. Lighting a wrong torch resets the attempt.
 public partial class TorchPuzzle : Puzzle
 {
 	// Every torch that can be lit, right or wrong.
 	[Export] public Array<WallTorch> Torches { get; set; } = new();
 	// The torches that must be lit (and no others).
 	[Export] public Array<WallTorch> Answer { get; set; } = new();
-	[Export] public float TimeLimit { get; set; } = 30f;
-	[Export] public string StartMessage { get; set; } = "The flames will hold for thirty breaths...";
+	[Export] public string StartMessage { get; set; } = "The flames are ready...";
 	[Export] public string FailMessage { get; set; } = "The flames die out.";
 	// Lighting a torch that isn't in Answer fails straight away, so players can try again at once.
 	[Export] public string WrongMessage { get; set; } = "That fire never burned in the past...";
 	[Export] public float WrongDelay { get; set; } = 1.2f;
-
-	[Signal] public delegate void TimerStartedEventHandler(float seconds);
-	[Signal] public delegate void TimedOutEventHandler();
-
-	public bool IsRunning { get; private set; }
-	public double TimeLeft { get; private set; }
 
 	public override void _Ready()
 	{
@@ -32,7 +24,6 @@ public partial class TorchPuzzle : Puzzle
 			if (torch != null)
 				torch.LitChanged += OnLitChanged;
 		}
-		SetProcess(false);
 	}
 
 	public override void _ExitTree()
@@ -44,19 +35,8 @@ public partial class TorchPuzzle : Puzzle
 		}
 	}
 
-	public override void _Process(double delta)
-	{
-		TimeLeft -= delta;
-		if (TimeLeft > 0)
-			return;
-		Fail();
-		EmitSignal(SignalName.TimedOut);
-	}
-
 	private void Fail()
 	{
-		IsRunning = false;
-		SetProcess(false);
 		foreach (WallTorch torch in Torches)
 			torch?.Extinguish();
 		Message(FailMessage);
@@ -64,8 +44,6 @@ public partial class TorchPuzzle : Puzzle
 
 	private async void FailSoon()
 	{
-		// A moment to see the wrong flame catch before everything goes dark.
-		SetProcess(false);
 		await ToSignal(GetTree().CreateTimer(WrongDelay), SceneTreeTimer.SignalName.Timeout);
 		if (!IsSolved)
 			Fail();
@@ -83,19 +61,10 @@ public partial class TorchPuzzle : Puzzle
 			return;
 		}
 
-		if (!IsRunning)
-		{
-			IsRunning = true;
-			TimeLeft = TimeLimit;
-			SetProcess(true);
-			Message(StartMessage);
-			EmitSignal(SignalName.TimerStarted, TimeLimit);
-		}
+		Message(StartMessage);
 
 		if (!AnswerIsLit())
 			return;
-		IsRunning = false;
-		SetProcess(false);
 		IsSolved = true;
 		foreach (WallTorch t in Torches)
 		{
