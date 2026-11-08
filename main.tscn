@@ -405,12 +405,14 @@ Slots = [NodePath("../PyramidSlots/Slot1"), NodePath("../PyramidSlots/Slot2"), N
 Answer = [NodePath("../level1old/Ruin_Pyramid_Brown-rigid"), NodePath("../level1old/Ruin_Pyramid_Blue-rigid"), NodePath("../level1old/Ruin_Pyramid_Orange-rigid"), NodePath("../level1old/Ruin_Pyramid_Green-rigid"), NodePath("../level1old/Ruin_Pyramid_Purple-rigid"), NodePath("../level1old/Ruin_Pyramid_Red-rigid"), NodePath("../level1old/Ruin_Pyramid_Yellow-rigid"), NodePath("../level1old/Ruin_Pyramid_Pink-rigid")]
 
 [node name="PyramidKey" parent="." instance=ExtResource("7_key")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203.13, 0.835, 8.864056)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 203.2, 1.1, 9.678)
 
 [node name="PyramidKeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
 script = ExtResource("9_riseonsolved")
 Puzzle = NodePath("../PyramidPuzzle")
 Target = NodePath("../PyramidKey")
+StartOffset = Vector3(0, 0, 0.45)
+OpenWall = true
 
 [node name="TorchPuzzle" type="Node" parent="." node_paths=PackedStringArray("Torches", "Answer")]
 script = ExtResource("20_torchpuzzle")
