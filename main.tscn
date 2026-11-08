@@ -25,6 +25,7 @@
 [ext_resource type="Script" path="res://gameplay/WallOpening.cs" id="27_wallopening"]
 [ext_resource type="Script" path="res://gameplay/RoundPillar.cs" id="32_roundpillar"]
 [ext_resource type="Script" path="res://gameplay/BoulderRun.cs" id="33_boulderrun"]
+[ext_resource type="Texture2D" path="res://art/level1old_TX_DesertSand.png" id="34_desert_sand"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 [ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
@@ -36,6 +37,22 @@
 [ext_resource type="PackedScene" path="res://art/mummy.glb" id="31_mummy"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_under_dunes"]
+albedo_color = Color(0.86, 0.72, 0.5, 1)
+albedo_texture = ExtResource("34_desert_sand")
+uv1_triplanar = true
+uv1_scale = Vector3(0.25, 0.25, 0.25)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="Box_under_dunes_w"]
+size = Vector3(52, 4.88, 70)
+
+[sub_resource type="BoxMesh" id="Box_under_dunes_n"]
+size = Vector3(1.05, 4.88, 35.15)
+
+[sub_resource type="BoxMesh" id="Box_under_dunes_s"]
+size = Vector3(1.05, 4.88, 32.55)
 
 [sub_resource type="StandardMaterial3D" id="Mat_desert_sky"]
 shading_mode = 0
@@ -1133,3 +1150,20 @@ Sources = [NodePath("../level1/Pillar_1"), NodePath("../level1/Pillar_2"), NodeP
 [node name="BoulderRun" type="Node" parent="." node_paths=PackedStringArray("Level")]
 script = ExtResource("33_boulderrun")
 Level = NodePath("../level1old")
+
+[node name="UnderDunes" type="Node3D" parent="level1old"]
+
+[node name="West" type="MeshInstance3D" parent="level1old/UnderDunes"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -54.05, 5.44, 15)
+mesh = SubResource("Box_under_dunes_w")
+surface_material_override/0 = SubResource("Mat_under_dunes")
+
+[node name="North" type="MeshInstance3D" parent="level1old/UnderDunes"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.525, 5.44, -2.425)
+mesh = SubResource("Box_under_dunes_n")
+surface_material_override/0 = SubResource("Mat_under_dunes")
+
+[node name="South" type="MeshInstance3D" parent="level1old/UnderDunes"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.525, 5.44, 33.725)
+mesh = SubResource("Box_under_dunes_s")
+surface_material_override/0 = SubResource("Mat_under_dunes")
