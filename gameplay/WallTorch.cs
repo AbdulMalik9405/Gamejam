@@ -3,8 +3,8 @@ using Godot;
 namespace Gamejam.Gameplay;
 
 // An unlit wall torch the player can light by holding their hand Torch and pressing interact.
-// Attach to a torch's root node (its origin is the foot of the stick); the flame and light are copied
-// from the intact map's torch so both eras look the same when lit.
+// Attach to a torch's root node (its origin is the cup); the flame and light are copied from the
+// intact map's torch so both eras look the same when lit.
 public partial class WallTorch : Node3D
 {
 	[Export] public string SourceScene { get; set; } = "res://art/level1.glb";
@@ -14,13 +14,7 @@ public partial class WallTorch : Node3D
 	[Export] public float LightEnergy { get; set; } = 0.75f;
 	[Export] public float LightRange { get; set; } = 10f;
 	[Export] public float LightAttenuation { get; set; } = 1.5f;
-	// Moves the copied flame and light from the intact torch's cup up onto this torch's head.
-	// The default suits the ruined map's cloth-head torches (head top 0.66 m up the stick).
-	[Export] public Vector3 FlameOffset { get; set; } = new Vector3(0f, 0.49f, 0f);
-	// The flame points straight up even when the torch leans in its sconce.
-	[Export] public bool KeepFlameUpright { get; set; } = true;
-	[Export] public Vector3 HitBoxSize { get; set; } = new Vector3(0.3f, 0.8f, 0.3f);
-	[Export] public Vector3 HitBoxOffset { get; set; } = new Vector3(0f, 0.4f, 0f);
+	[Export] public Vector3 HitBoxSize { get; set; } = new Vector3(0.35f, 0.65f, 0.35f);
 
 	[Signal] public delegate void LitChangedEventHandler(WallTorch torch, bool lit);
 
@@ -54,18 +48,16 @@ public partial class WallTorch : Node3D
 		{
 			Name = "Flame",
 			Mesh = model.Flame,
-			Transform = model.FlameTransform.Translated(FlameOffset),
+			Transform = model.FlameTransform,
 			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
 			Visible = false,
 		};
 		AddChild(_flame);
-		if (KeepFlameUpright)
-			_flame.GlobalRotation = Vector3.Zero;
 
 		_light = new OmniLight3D
 		{
 			Name = "Light",
-			Position = model.LightPosition + FlameOffset,
+			Position = model.LightPosition,
 			LightColor = model.LightColor,
 			LightEnergy = LightEnergy,
 			OmniRange = LightRange,
@@ -78,7 +70,7 @@ public partial class WallTorch : Node3D
 		_target.AddChild(new CollisionShape3D
 		{
 			Shape = new BoxShape3D { Size = HitBoxSize },
-			Position = HitBoxOffset,
+			Position = new Vector3(0f, 0.05f, 0f),
 		});
 		AddChild(_target);
 		_target.Interacted += OnInteracted;
