@@ -20,5 +20,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
 shape = SubResource("CylinderShape3D_torch")
 
 [node name="Grip" type="Marker3D" parent="."]
-position = Vector3(0, 0.38, 0)
+position = Vector3(0, 0.3, 0)
 rotation_degrees = Vector3(42, 0, 0)

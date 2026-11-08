@@ -140,8 +140,14 @@ public partial class RevealCinematic : Node
 		Vector3 side = face.LengthSquared() > 0.1f ? face.Normalized() : toPlayer;
 		if (side.Dot(toPlayer) < 0f)
 			side = -side;
-		// A reward lying flat (e.g. on a ledge) is seen from higher up, so its whole top shows.
+		// A reward lying flat (e.g. on a ledge) is seen from higher up, so its whole top shows. One that slides out
+		// of a wall (it starts away from focus, sideways) is filmed from in front of the opening, leaning toward
+		// the player, so whatever stands between the player and the wall stays out of the shot.
 		bool flat = Mathf.Abs(_target.GlobalBasis.Z.Normalized().Y) > 0.7f;
+		Vector3 slide = _focus - _target.GlobalPosition;
+		slide.Y = 0f;
+		if (flat && slide.LengthSquared() > 0.01f)
+			side = (slide.Normalized() + toPlayer * 0.5f).Normalized();
 		_shotFrom = _focus + side * 0.75f + Vector3.Up * (flat ? 0.45f : 0.22f);
 		_shotTo = _focus + side * 0.5f + Vector3.Up * (flat ? 0.3f : 0.1f);
 		_shot = new Camera3D { Name = "Shot", Fov = 60f };

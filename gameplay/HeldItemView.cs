@@ -71,6 +71,8 @@ public partial class HeldItemView : Node
 	private Node3D _grip;
 	private bool _toss;
 	private Node3D _arm;
+	// The fist, with an "open" blend shape for letting go of a tossed torch (gameplay/FingerBend.cs); null without one.
+	private MeshInstance3D _hand;
 	// The arm's and the hand's resting poses in camera space, read from the model.
 	private Transform3D _armRest;
 	private Transform3D _gripRest;
@@ -157,6 +159,7 @@ public partial class HeldItemView : Node
 			if (_shown != null)
 				_arm.GlobalTransform = view * hand * _armRest;
 		}
+		_hand?.SetBlendShapeValue(0, FingersOpen());
 		if (_shown != null)
 			_shown.GlobalTransform = _toss
 				? view * hand * Toss() * ItemInHand()
@@ -196,6 +199,10 @@ public partial class HeldItemView : Node
 		// Right in front of the camera, so a shadow would cover half the screen.
 		foreach (Node mesh in arm.FindChildren("*", "MeshInstance3D", true, false))
 			((MeshInstance3D)mesh).CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+
+		_hand = arm.FindChild("Arm_Hand", true, false) as MeshInstance3D;
+		if (!FingerBend.AddOpenShape(_hand))
+			_hand = null;
 
 		arm.Name = "Arm";
 		arm.Visible = false;
@@ -323,6 +330,15 @@ public partial class HeldItemView : Node
 			return TossFlick * (1f - Mathf.SmoothStep(0f, 1f, (p - TossRelease) / (TossCatch - TossRelease)));
 		float k = (p - TossCatch) / (1f - TossCatch);
 		return -CatchDip * Mathf.Sin(Mathf.Min(k * 1.6f, 1f) * Mathf.Pi) * (1f - k);
+	}
+
+	// The fingers spring open as the torch leaves the hand and close around it as it lands.
+	private float FingersOpen()
+	{
+		if (!_toss || _inspect < 0f)
+			return 0f;
+		float p = _inspect / TossTime;
+		return Mathf.SmoothStep(TossRelease - 0.04f, TossRelease + 0.05f, p) * (1f - Mathf.SmoothStep(TossCatch - 0.07f, TossCatch, p));
 	}
 
 	// The item in the air, relative to the hand: up and back down, spinning steadily, whole turns so it lands as it left.
