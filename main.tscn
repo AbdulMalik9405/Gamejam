@@ -26,6 +26,19 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
 
+[sub_resource type="StandardMaterial3D" id="Mat_shelf"]
+albedo_color = Color(0.58, 0.49, 0.38, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_shelf1"]
+size = Vector3(0.16, 0.03, 0.76)
+
+[sub_resource type="BoxMesh" id="BoxMesh_shelf2"]
+size = Vector3(0.16, 0.03, 0.58)
+
+[sub_resource type="BoxMesh" id="BoxMesh_shelf3"]
+size = Vector3(0.16, 0.03, 0.22)
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_pyramidslot"]
 size = Vector3(0.16, 0.16, 0.16)
 
@@ -348,8 +361,23 @@ OpenWall = true
 [node name="PyramidSlots" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 0, 8.864056)
 
+[node name="Shelf1" type="MeshInstance3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.135, 0)
+mesh = SubResource("BoxMesh_shelf1")
+surface_material_override/0 = SubResource("Mat_shelf")
+
+[node name="Shelf2" type="MeshInstance3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.335, 0)
+mesh = SubResource("BoxMesh_shelf2")
+surface_material_override/0 = SubResource("Mat_shelf")
+
+[node name="Shelf3" type="MeshInstance3D" parent="PyramidSlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.535, 0)
+mesh = SubResource("BoxMesh_shelf3")
+surface_material_override/0 = SubResource("Mat_shelf")
+
 [node name="Slot1" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, -0.27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.27)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_1"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -359,7 +387,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot2" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, -0.09)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.09)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_2"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -369,7 +397,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot3" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, 0.09)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.09)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_3"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -379,7 +407,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot4" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.075, 0.844, 0.27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.27)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_4"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -389,7 +417,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot5" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, -0.18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, -0.18)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_5"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -399,7 +427,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot6" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_6"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -409,7 +437,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot7" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.245, 0.904, 0.18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.18)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_7"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -419,7 +447,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
 shape = SubResource("BoxShape3D_pyramidslot")
 
 [node name="Slot8" type="Area3D" parent="PyramidSlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.415, 0.964, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.55, 0)
 script = ExtResource("10_pickupslot")
 Id = "pyramid_slot_8"
 Size = Vector3(0.14, 0.02, 0.14)
@@ -516,10 +544,10 @@ script = ExtResource("23_moveonsolved")
 Puzzle = NodePath("../KeyholeLock")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
-DoneMessage = "Take the tile from the gold coffin and place it on the table in the new room."
+DoneMessage = "Take the tile from the coffin in the main room and place it on the table in the new room."
 
 [node name="Tile" parent="." instance=ExtResource("24_tile")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 196.27, 3, 28.562)
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 195.87, 0.466, 9.46)
 
 [node name="TileSlot" type="Area3D" parent="."]
 transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 196.27, 2.497, 25.564)
