@@ -60,7 +60,7 @@ public partial class CeilingCollapse : Puzzle
 	// The trap room shot after the way back has closed (in the mummy's parent's space), and its line.
 	[Export] public Vector3 TrapCameraPosition { get; set; } = new(-6.0f, 3.5f, 18.7f);
 	[Export] public Vector3 TrapCameraTarget { get; set; } = new(-12.5f, 0.4f, 15.6f);
-	[Export] public string TrapTitle { get; set; } = "You must now work together";
+	[Export] public string TrapTitle { get; set; } = "Nowhere to run. You must now work together.";
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;

@@ -6,7 +6,8 @@ namespace Gamejam.Net;
 // The lobby backdrop and the intro, played locally on each peer. In the lobby the camera sways gently over the
 // intact tomb. Once both players are in, each sees a slow glide round their own era's room; then a time rupture
 // ripples in and, at its height, gives a glimpse of the same spot in the other era, then settles back in your own room
-// for a moment before a white flash that softens into the logo; then each player appears at their era's spawn with "Solve the puzzle".
+// for a moment before a white flash that softens into the logo; then each player appears at their era's spawn, told who they are
+// and what they must do.
 // Visual only; the one thing it touches is pausing and placing the local player.
 public partial class Intro : Node
 {
@@ -28,8 +29,13 @@ public partial class Intro : Node
 	[Export] public float LogoFadeOut { get; set; } = 0.8f;
 	[Export] public float LogoSize { get; set; } = 760f;
 	[Export] public float RevealDuration { get; set; } = 0.9f;
-	[Export] public float MessageHold { get; set; } = 2.0f;
+	[Export] public float MessageHold { get; set; } = 3.5f;
 	[Export] public float MessageFade { get; set; } = 1.5f;
+	// Who each player is: the explorer (present) trapped in the tomb, the Egyptian (past) reaching them across time.
+	[Export] public string PresentTitle { get; set; } = "You are trapped in an ancient Egyptian tomb";
+	[Export] public string PresentLine { get; set; } = "You must escape.";
+	[Export] public string PastTitle { get; set; } = "A disruption in space and time";
+	[Export] public string PastLine { get; set; } = "has let you contact someone in the future who needs your help.";
 	// Shown under the message to the present player, who starts with the torch, with extra time to read it.
 	[Export] public string PresentTip { get; set; } = "Tip: with your torch out, press F on any wall to mount it there, and F again to take it back.";
 	[Export] public float TipHold { get; set; } = 2.5f;
@@ -58,6 +64,7 @@ public partial class Intro : Node
 	private ColorRect _backdrop;
 	private Control _logo;
 	private Control _message;
+	private Label _heading;
 	private Label _subtitle;
 	private Label _tip;
 	private float _hold;
@@ -182,7 +189,8 @@ public partial class Intro : Node
 		bool present = GameState.Instance.LocalEra == Era.Present;
 		_ownRoom = present ? PresentRoomCentre : PastRoomCentre;
 		_otherRoom = present ? PastRoomCentre : PresentRoomCentre;
-		_subtitle.Text = present ? "You are in the present" : "You are in the past";
+		_heading.Text = present ? PresentTitle : PastTitle;
+		_subtitle.Text = present ? PresentLine : PastLine;
 		// The blank first line spaces it off from the subtitle.
 		_tip.Text = "\n" + PresentTip;
 		_tip.Visible = present && PresentTip != "";
@@ -344,8 +352,9 @@ public partial class Intro : Node
 			Visible = false,
 		};
 		box.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		box.AddChild(MakeLabel("Solve the puzzle", 56));
-		_subtitle = MakeLabel("", 24);
+		_heading = MakeLabel("", 46);
+		box.AddChild(_heading);
+		_subtitle = MakeLabel("", 28);
 		box.AddChild(_subtitle);
 		_tip = MakeLabel("", 20);
 		box.AddChild(_tip);
