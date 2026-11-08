@@ -30,7 +30,7 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 HoleMax { get; set; } = new(4.3f, 4.4f, 0.8f);
 	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.25f);
 	// Where he walks in from (PastLevel's space), arriving under the hole just before it gives.
-	[Export] public Vector3 WalkFrom { get; set; } = new(3.8f, 0f, -1.7f);
+	[Export] public Vector3 WalkFrom { get; set; } = new(3.6f, 0f, -1.4f);
 	// Before that: the title, then a wide shot of the room as he walks round the sarcophagus (PastLevel's space).
 	[Export] public string PreludeTitle { get; set; } = "Some time long ago...";
 	[Export] public Vector3 PreludeCameraPosition { get; set; } = new(-0.4f, 2.3f, 3.7f);
@@ -63,8 +63,8 @@ public partial class CeilingCollapse : Puzzle
 	// The prelude: a pause after the tile is placed, a fade to black, the title, then the room.
 	private const float PreludeDelay = 1.5f;
 	private const float TitleTime = 3.2f;
-	private const float MournWalkSpeed = 0.85f;
-	private const float MournPause = 2.3f;
+	private const float MournWalkSpeed = 1.0f;
+	private const float MournPause = 1.8f;
 	// He walks in (slowing as he hears the rumble), stops, and looks up as it breaks; the camera follows him and
 	// tilts partway up to the ceiling with him.
 	private const float WalkEnd = 1.85f;
@@ -309,12 +309,14 @@ public partial class CeilingCollapse : Puzzle
 		_preludeCamera.LookAt(Local(PreludeFocus), Vector3.Up);
 		_preludeCamera.MakeCurrent();
 
-		// Round the west side of the sunken floor, a stop to mourn facing the sarcophagus, along the north side,
-		// another stop, then off towards the spot under the ceiling.
+		// Along the west side of the sunken floor, a stop to mourn facing the sarcophagus, along the north side,
+		// another stop, then off towards the spot under the ceiling, passing inside the north-east pillar (x 3..4,
+		// z -3..-2) rather than through it.
 		var points = new (Vector3 At, bool Mourn)[]
 		{
-			(new Vector3(-2.25f, 0f, 1.4f), false), (new Vector3(-2.25f, 0f, -0.9f), true),
-			(new Vector3(-0.9f, 0f, -3.4f), false), (new Vector3(0.9f, 0f, -3.4f), true), (WalkFrom, false),
+			(new Vector3(-2.25f, 0f, 0.6f), false), (new Vector3(-2.25f, 0f, -0.9f), true),
+			(new Vector3(-0.9f, 0f, -3.4f), false), (new Vector3(0.9f, 0f, -3.4f), true),
+			(new Vector3(2.3f, 0f, -1.3f), false), (WalkFrom, false),
 		};
 		_mournRoute.Clear();
 		_preludeShotEnd = 0f;
