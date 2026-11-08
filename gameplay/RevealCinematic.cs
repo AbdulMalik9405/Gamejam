@@ -73,6 +73,7 @@ public partial class RevealCinematic : Node
 
 	public override void _Ready()
 	{
+		GameState.Instance?.PauseTimer();
 		_player.InputLocked = true;
 		Build();
 	}
@@ -222,6 +223,7 @@ public partial class RevealCinematic : Node
 
 	private void Finish()
 	{
+		GameState.Instance?.ResumeTimer();
 		foreach ((MeshInstance3D mesh, int surface, Material previous) in _swapped)
 		{
 			if (IsInstanceValid(mesh))
@@ -234,6 +236,8 @@ public partial class RevealCinematic : Node
 
 	public override void _ExitTree()
 	{
+		if (!_cutBack)
+			GameState.Instance?.ResumeTimer();
 		// Never leave the player stuck if this goes away early (scene reload, partner left).
 		if (!_cutBack && IsInstanceValid(_player))
 			_player.InputLocked = false;

@@ -166,6 +166,8 @@ public partial class CeilingCollapse : Puzzle
 	{
 		if (Trigger != null && IsInstanceValid(Trigger))
 			Trigger.Solved -= OnTriggerSolved;
+		if (_playing && !_finished)
+			GameState.Instance?.ResumeTimer();
 		// Never leave a player stuck if this goes away early.
 		if (_playing && !_cutBack && IsInstanceValid(_localPlayer))
 			_localPlayer.InputLocked = false;
@@ -184,6 +186,7 @@ public partial class CeilingCollapse : Puzzle
 		if (_playing || PastLevel == null)
 			return;
 		_playing = true;
+		GameState.Instance?.PauseTimer();
 		_rng.Seed = 1234;
 		_localPlayer = GameState.Instance?.GetPlayerNode(Multiplayer.GetUniqueId()) as Player;
 		if (_localPlayer != null)
@@ -1305,6 +1308,7 @@ public partial class CeilingCollapse : Puzzle
 	private void Finish()
 	{
 		_finished = true;
+		GameState.Instance?.ResumeTimer();
 		_fade.Color = Colors.Transparent;
 		if (IsInstanceValid(_localPlayer))
 			_localPlayer.InputLocked = false;
