@@ -63,7 +63,7 @@ public partial class CeilingCollapse : Puzzle
 	// The prelude: a pause after the tile is placed, a fade to black, the title, then the room.
 	private const float PreludeDelay = 1.5f;
 	private const float TitleTime = 3.2f;
-	private const float MournWalkSpeed = 1.0f;
+	private const float MournWalkSpeed = 1.15f;
 	private const float MournPause = 1.8f;
 	// He walks in (slowing as he hears the rumble), stops, and looks up as it breaks; the camera follows him and
 	// tilts partway up to the ceiling with him.
@@ -107,6 +107,9 @@ public partial class CeilingCollapse : Puzzle
 	private const int PlugCells = 3;
 	private const int RubbleCount = 26;
 	private const int PebbleCount = 14;
+	// Gravel that pours down with the big stones, and how many of the big ones throw up a puff of dust as they land.
+	private const int GravelCount = 28;
+	private const int MaxLandingPuffs = 12;
 
 	private bool _playing;
 	private bool _inPrelude;
@@ -154,6 +157,8 @@ public partial class CeilingCollapse : Puzzle
 	private float _mummyPathLength;
 	private Camera3D _explorerCamera;
 	private readonly RandomNumberGenerator _rng = new();
+	private Material[] _rockShades;
+	private int _landingPuffs;
 
 	public override void _Ready()
 	{
@@ -235,7 +240,7 @@ public partial class CeilingCollapse : Puzzle
 
 		if (!_inCoffin)
 		{
-			AnimateVictim(t);
+			AnimateVictim(t, dt);
 			AnimateCamera(t);
 		}
 		ReleaseRubble(t);
@@ -264,6 +269,17 @@ public partial class CeilingCollapse : Puzzle
 	}
 
 	private Vector3 Local(Vector3 p) => PastLevel.ToGlobal(p);
+
+	// A cutscene walker's feet go on whatever floor is under them (up and down stairs, never over a drop), easing
+	// between heights so a step up is a step rather than a jump. dt 0 snaps straight there.
+	private Vector3 OnFloor(Vector3 at, Node3D walker, float dt)
+	{
+		var query = PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 1.2f, at + Vector3.Down * 2.5f, Layers.World);
+		Godot.Collections.Dictionary hit = walker.GetWorld3D().DirectSpaceState.IntersectRay(query);
+		float floor = hit.Count > 0 ? hit["position"].AsVector3().Y : at.Y;
+		float y = dt <= 0f || !walker.IsInsideTree() ? floor : Mathf.Lerp(walker.GlobalPosition.Y, floor, 1f - Mathf.Exp(-14f * dt));
+		return at with { Y = y };
+	}
 
 	// A beat after the tile goes down, fade to black, the title, then the intact room: he walks slowly round the
 	// sarcophagus, stopping twice to mourn, and heads on towards where he'll stand when it falls.
@@ -312,14 +328,14 @@ public partial class CeilingCollapse : Puzzle
 		_preludeCamera.LookAt(Local(PreludeFocus), Vector3.Up);
 		_preludeCamera.MakeCurrent();
 
-		// Along the west side of the sunken floor, a stop to mourn facing the sarcophagus, along the north side,
-		// another stop, then off towards the spot under the ceiling, passing inside the north-east pillar (x 3..4,
-		// z -3..-2) rather than through it.
+		// Along the west side of the sunken floor (which runs x -1.75..1.75, z -2.75..2.75), a stop to mourn facing the
+		// sarcophagus, round its north-west corner, along the north side, another stop, round the north-east corner, then
+		// off towards the spot under the ceiling: always on the raised floor, and inside the corner pillars.
 		var points = new (Vector3 At, bool Mourn)[]
 		{
 			(new Vector3(-2.25f, 0f, 0.6f), false), (new Vector3(-2.25f, 0f, -0.9f), true),
-			(new Vector3(-0.9f, 0f, -3.4f), false), (new Vector3(0.9f, 0f, -3.4f), true),
-			(new Vector3(2.3f, 0f, -1.3f), false), (WalkFrom, false),
+			(new Vector3(-2.25f, 0f, -3.25f), false), (new Vector3(0.9f, 0f, -3.4f), true),
+			(new Vector3(2.3f, 0f, -3.25f), false), (new Vector3(2.3f, 0f, -1.3f), false), (WalkFrom, false),
 		};
 		_mournRoute.Clear();
 		_preludeShotEnd = 0f;
@@ -375,7 +391,7 @@ public partial class CeilingCollapse : Puzzle
 			}
 			break;
 		}
-		pivot.GlobalPosition = Local(at);
+		pivot.GlobalPosition = OnFloor(Local(at), pivot, dt);
 		facing.Y = 0f;
 		if (facing.LengthSquared() > 0.0001f)
 		{
@@ -516,7 +532,7 @@ public partial class CeilingCollapse : Puzzle
 			}
 			distance -= segment;
 		}
-		_explorerWalker.Position = at;
+		_explorerWalker.GlobalPosition = OnFloor(_crypt.ToGlobal(at), _explorerWalker, dt);
 		heading.Y = 0f;
 		if (heading.LengthSquared() > 0.0001f)
 		{
@@ -669,21 +685,80 @@ public partial class CeilingCollapse : Puzzle
 		}
 	}
 
-	// Stones that fall after the slab, and pebbles that trickle down before it goes.
+	// Pebbles that trickle down before the slab goes, then chipped stones of all sizes (a few big slabs, many middling
+	// lumps) and a pour of gravel after it.
 	private void BuildRubble()
 	{
+		_rockShades = Rubble.Shades(_stoneMaterial, _rng, 5);
 		for (int i = 0; i < PebbleCount; i++)
 		{
 			float s = _rng.RandfRange(0.03f, 0.07f);
 			Vector3 at = new(_rng.RandfRange(HoleMin.X + 0.2f, HoleMax.X - 0.2f), HoleMin.Y - 0.05f, _rng.RandfRange(HoleMin.Z + 0.2f, HoleMax.Z - 0.2f));
-			_pending.Add((_rng.RandfRange(0.9f, BreakTime), MakeStone(new Vector3(s, s * 0.8f, s * 1.1f), at, hidden: true)));
+			_pending.Add((_rng.RandfRange(0.9f, BreakTime), MakeRock(new Vector3(s, s * 0.8f, s * 1.1f), at)));
 		}
 		for (int i = 0; i < RubbleCount; i++)
 		{
-			float s = _rng.RandfRange(0.12f, 0.38f);
+			// Mostly middling lumps, the odd big slab.
+			float s = i < 4 ? _rng.RandfRange(0.4f, 0.55f) : _rng.RandfRange(0.14f, 0.34f);
 			Vector3 at = new(_rng.RandfRange(HoleMin.X, HoleMax.X), HoleMax.Y + _rng.RandfRange(0.1f, 1.2f), _rng.RandfRange(HoleMin.Z, HoleMax.Z));
-			_pending.Add((_rng.RandfRange(BreakTime + 0.05f, RubbleEnd), MakeStone(new Vector3(s, s * _rng.RandfRange(0.5f, 0.9f), s * _rng.RandfRange(0.7f, 1.2f)), at, hidden: true)));
+			RigidBody3D rock = MakeRock(new Vector3(s, s * _rng.RandfRange(0.45f, 0.8f), s * _rng.RandfRange(0.7f, 1.2f)), at);
+			if (s > 0.2f)
+				PuffOnLanding(rock);
+			_pending.Add((_rng.RandfRange(BreakTime + 0.05f, RubbleEnd), rock));
 		}
+		for (int i = 0; i < GravelCount; i++)
+		{
+			float s = _rng.RandfRange(0.035f, 0.09f);
+			Vector3 at = new(_rng.RandfRange(HoleMin.X + 0.1f, HoleMax.X - 0.1f), HoleMax.Y + _rng.RandfRange(0f, 0.8f), _rng.RandfRange(HoleMin.Z + 0.1f, HoleMax.Z - 0.1f));
+			_pending.Add((_rng.RandfRange(BreakTime + 0.1f, RubbleEnd + 0.5f), MakeRock(new Vector3(s, s * 0.7f, s), at)));
+		}
+	}
+
+	// A chipped lump of the ceiling's stone (hidden and frozen until released), with a collider of its own shape.
+	private RigidBody3D MakeRock(Vector3 size, Vector3 localCenter)
+	{
+		(ArrayMesh mesh, Vector3[] hull) = Rubble.Rock(size, _rng);
+		var body = new RigidBody3D
+		{
+			CollisionLayer = Layers.World,
+			CollisionMask = Layers.World,
+			Mass = Mathf.Max(0.3f, size.X * size.Y * size.Z * 2000f),
+			Freeze = true,
+			FreezeMode = RigidBody3D.FreezeModeEnum.Static,
+			Visible = false,
+			// Stone grinds rather than slides.
+			PhysicsMaterialOverride = new PhysicsMaterial { Friction = 0.9f, Bounce = 0.05f },
+		};
+		body.AddChild(new CollisionShape3D { Shape = new ConvexPolygonShape3D { Points = hull } });
+		body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = _rockShades[_rng.RandiRange(0, _rockShades.Length - 1)] });
+		_debris.AddChild(body);
+		body.GlobalPosition = Local(localCenter);
+		body.Rotation = new Vector3(_rng.RandfRange(-3f, 3f), _rng.RandfRange(-3f, 3f), _rng.RandfRange(-3f, 3f));
+		return body;
+	}
+
+	// The first hard landing of a big stone kicks up a little dust.
+	private void PuffOnLanding(RigidBody3D rock)
+	{
+		rock.ContactMonitor = true;
+		rock.MaxContactsReported = 1;
+		bool landed = false;
+		rock.BodyEntered += _ =>
+		{
+			if (landed || rock.LinearVelocity.Length() < 1.5f || _landingPuffs >= MaxLandingPuffs || _burst == null)
+				return;
+			landed = true;
+			_landingPuffs++;
+			var puff = (CpuParticles3D)_burst.Duplicate();
+			puff.Amount = 10;
+			puff.EmissionRingRadius = 0.25f;
+			puff.EmissionRingInnerRadius = 0.05f;
+			puff.InitialVelocityMax = 0.9f;
+			puff.ScaleAmountMax = 1.1f;
+			_debris.AddChild(puff);
+			puff.GlobalPosition = rock.GlobalPosition;
+			puff.Emitting = true;
+		};
 	}
 
 	// A block of the ceiling's stone at a point in PastLevel's space. Hidden ones wait, frozen, until released, and
@@ -799,7 +874,7 @@ public partial class CeilingCollapse : Puzzle
 		dust.GlobalPosition = Local(localPosition);
 	}
 
-	private void AnimateVictim(float t)
+	private void AnimateVictim(float t, float dt)
 	{
 		if (_victim == null)
 			return;
@@ -807,7 +882,7 @@ public partial class CeilingCollapse : Puzzle
 		if (!_fell)
 		{
 			float k = Mathf.Clamp(t / WalkEnd, 0f, 1f);
-			_victimPivot.GlobalPosition = Local(WalkFrom.Lerp(VictimPosition, 1f - (1f - k) * (1f - k)));
+			_victimPivot.GlobalPosition = OnFloor(Local(WalkFrom.Lerp(VictimPosition, 1f - (1f - k) * (1f - k))), _victimPivot, dt);
 		}
 		float look = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((t - LookUpStart) / (LookUpEnd - LookUpStart), 0f, 1f));
 		_victim.HeadPitchDegrees = 40f * look * (_fell ? 0.3f : 1f);
@@ -858,12 +933,37 @@ public partial class CeilingCollapse : Puzzle
 	private void Break()
 	{
 		_broke = true;
+		// Each square of the slab cracks into a few chipped chunks as it gives (some still showing the painted stars
+		// underneath), which fall with a bit of a tumble.
+		var starShade = (_starsMaterial as BaseMaterial3D)?.Duplicate() as BaseMaterial3D;
+		if (starShade != null)
+		{
+			starShade.Uv1Triplanar = true;
+			starShade.Uv1Scale = Vector3.One * 1.2f;
+		}
+		Vector3 cell = HoleMax - HoleMin;
+		cell = new Vector3(cell.X / PlugCells, cell.Y, cell.Z / PlugCells);
 		foreach (RigidBody3D chunk in _plug)
 		{
-			chunk.Freeze = false;
-			chunk.LinearVelocity = new Vector3(_rng.RandfRange(-0.4f, 0.4f), _rng.RandfRange(-1.5f, -0.5f), _rng.RandfRange(-0.4f, 0.4f));
-			chunk.AngularVelocity = new Vector3(_rng.RandfRange(-2.5f, 2.5f), _rng.RandfRange(-1f, 1f), _rng.RandfRange(-2.5f, 2.5f));
+			Vector3 at = PastLevel.ToLocal(chunk.GlobalPosition);
+			int pieces = _rng.RandiRange(2, 3);
+			for (int i = 0; i < pieces; i++)
+			{
+				var size = new Vector3(cell.X * _rng.RandfRange(0.55f, 0.8f), cell.Y * _rng.RandfRange(0.8f, 1.1f), cell.Z * _rng.RandfRange(0.55f, 0.8f));
+				Vector3 offset = new(_rng.RandfRange(-0.25f, 0.25f) * cell.X, 0f, _rng.RandfRange(-0.25f, 0.25f) * cell.Z);
+				RigidBody3D piece = MakeRock(size, at + offset);
+				if (starShade != null && i == 0)
+					piece.GetChild<MeshInstance3D>(1).MaterialOverride = starShade;
+				piece.Visible = true;
+				piece.Freeze = false;
+				piece.LinearVelocity = new Vector3(_rng.RandfRange(-0.5f, 0.5f), _rng.RandfRange(-1.5f, -0.4f), _rng.RandfRange(-0.5f, 0.5f));
+				piece.AngularVelocity = new Vector3(_rng.RandfRange(-3f, 3f), _rng.RandfRange(-1.5f, 1.5f), _rng.RandfRange(-3f, 3f));
+				if (i == 0)
+					PuffOnLanding(piece);
+			}
+			chunk.QueueFree();
 		}
+		_plug.Clear();
 		Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "ceiling_collapse", Local(HoleCenter));
 	}
 
@@ -1097,7 +1197,7 @@ public partial class CeilingCollapse : Puzzle
 		if (!_coffinBroken && m >= BurstTime)
 			BurstCoffin();
 
-		// Out of the coffin and down off the dais with a small hop, arms coming up; then the run.
+		// Out of the coffin and down off the dais with a small hop; then the run.
 		if (m >= BurstTime + 0.2f && m < PovCut)
 		{
 			float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((m - BurstTime - 0.2f) / (StepEnd - BurstTime - 0.2f), 0f, 1f));
@@ -1105,8 +1205,6 @@ public partial class CeilingCollapse : Puzzle
 			at.Y += Mathf.Sin(k * Mathf.Pi) * 0.1f;
 			Mummy.Position = at;
 		}
-		if (m >= BurstTime)
-			Mummy.Reach = Mathf.Clamp((m - BurstTime) / 0.6f, 0f, 1f);
 		if (!_atPov && m >= PovCut)
 			CutToExplorer();
 		if (_atPov)

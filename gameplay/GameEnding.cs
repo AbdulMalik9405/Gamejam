@@ -182,6 +182,129 @@ public partial class GameEnding : Node
 		camera.Position = CameraPosition;
 		camera.LookAt(_room.ToGlobal(CameraTarget), Vector3.Up);
 		camera.MakeCurrent();
+		if (!won)
+			MakeGloomy(camera);
+	}
+
+	// The lose screen: the room has fallen in. The braziers burn low, a brown haze hangs in the air with dust drifting
+	// through it and sand trickling from the ceiling, and rubble lies heaped along the walls and strewn over the floor.
+	private void MakeGloomy(Camera3D camera)
+	{
+		var rng = new RandomNumberGenerator { Seed = 77 };
+		foreach (Node node in _room.FindChildren("*", "OmniLight3D", true, false))
+		{
+			var light = (OmniLight3D)node;
+			if (light.Name.ToString().Contains("Brazier"))
+				light.LightEnergy = 0.55f;
+			else if (light.Name.ToString().Contains("Fill"))
+				light.LightEnergy = 0.12f;
+		}
+
+		// The camera's own copy of the world's look, darker, drained and hazy.
+		if (_room.GetWorld3D()?.Environment?.Duplicate() is Godot.Environment gloom)
+		{
+			gloom.AmbientLightEnergy *= 0.55f;
+			gloom.FogEnabled = true;
+			gloom.FogLightColor = new Color(0.3f, 0.23f, 0.16f);
+			gloom.FogLightEnergy = 0.6f;
+			gloom.FogDensity = 0.09f;
+			gloom.FogSkyAffect = 0f;
+			gloom.AdjustmentEnabled = true;
+			gloom.AdjustmentBrightness = 0.82f;
+			gloom.AdjustmentContrast = 1.08f;
+			gloom.AdjustmentSaturation = 0.55f;
+			camera.Environment = gloom;
+		}
+
+		Material stone = _room.GetNodeOrNull<MeshInstance3D>("Crypt_Pillar_1")?.GetActiveMaterial(0);
+		Material[] shades = Rubble.Shades(stone, rng, 5);
+		var debris = new Node3D { Name = "Collapse" };
+		_room.AddChild(debris);
+		// Heaps in view between the pillars and the dais, on the dais and in the corners (clear of the two circles at
+		// x ±0.75, z 0 and of the camera).
+		var heaps = new (Vector3 At, float Size, int Stones)[]
+		{
+			(new Vector3(-1.25f, 0f, 1.95f), 1.1f, 26), (new Vector3(1.35f, 0f, 1.75f), 1.0f, 24), (new Vector3(0.45f, 0.34f, 2.6f), 0.6f, 12),
+			(new Vector3(-2.75f, 0f, 2.9f), 1.0f, 18), (new Vector3(2.65f, 0f, 2.7f), 1.1f, 18), (new Vector3(-1.75f, 0f, -0.55f), 0.55f, 12),
+			(new Vector3(1.75f, 0f, -0.75f), 0.5f, 10),
+		};
+		foreach ((Vector3 at, float size, int stones) in heaps)
+		{
+			for (int i = 0; i < stones; i++)
+			{
+				// Bigger stones at the bottom and middle of the heap, smaller ones higher and further out.
+				float k = i / (float)stones;
+				float s = size * Mathf.Lerp(0.55f, 0.15f, k) * rng.RandfRange(0.7f, 1.2f);
+				float r = size * Mathf.Lerp(0.15f, 0.75f, k) * rng.RandfRange(0.5f, 1f);
+				float a = rng.RandfRange(0f, Mathf.Tau);
+				MeshInstance3D rock = Rubble.StillRock(new Vector3(s, s * rng.RandfRange(0.5f, 0.8f), s * rng.RandfRange(0.7f, 1.1f)), shades[rng.RandiRange(0, shades.Length - 1)], rng);
+				debris.AddChild(rock);
+				float height = Mathf.Max(0f, size * 0.55f * (1f - r / size) - s * 0.2f);
+				rock.Position = at + new Vector3(Mathf.Cos(a) * r, height + s * 0.25f, Mathf.Sin(a) * r);
+			}
+		}
+		// A big block fallen from the ceiling, lying cracked in the foreground.
+		MeshInstance3D block = Rubble.StillRock(new Vector3(0.75f, 0.42f, 0.55f), shades[0], rng);
+		debris.AddChild(block);
+		block.Position = new Vector3(-1.45f, 0.17f, -1.15f);
+		// Gravel and odd stones scattered over the floor, keeping the circles clear.
+		for (int i = 0; i < 70; i++)
+		{
+			var at = new Vector3(rng.RandfRange(-3.3f, 3.3f), 0f, rng.RandfRange(-3.2f, 3.2f));
+			if (Mathf.Abs(Mathf.Abs(at.X) - 0.75f) < 0.6f && Mathf.Abs(at.Z) < 0.6f)
+				continue;
+			float s = rng.Randf() < 0.75f ? rng.RandfRange(0.04f, 0.1f) : rng.RandfRange(0.14f, 0.28f);
+			MeshInstance3D rock = Rubble.StillRock(new Vector3(s, s * 0.6f, s), shades[rng.RandiRange(0, shades.Length - 1)], rng);
+			debris.AddChild(rock);
+			rock.Position = at + Vector3.Up * s * 0.25f;
+		}
+
+		StandardMaterial3D dust = Rubble.DustMaterial();
+		var dustColor = new Color(0.6f, 0.5f, 0.38f);
+		// Motes drifting in the haze.
+		debris.AddChild(new CpuParticles3D
+		{
+			Name = "Motes",
+			// Kept back from the camera (at z -3.1), where a mote would be a big blur.
+			Position = new Vector3(0f, 1.8f, 1.2f),
+			Amount = 260,
+			Lifetime = 9f,
+			Preprocess = 9f,
+			Mesh = new QuadMesh { Size = new Vector2(0.014f, 0.014f), Material = dust },
+			EmissionShape = CpuParticles3D.EmissionShapeEnum.Box,
+			EmissionBoxExtents = new Vector3(3.2f, 1.8f, 2.2f),
+			Direction = Vector3.Down,
+			Spread = 180f,
+			InitialVelocityMin = 0.02f,
+			InitialVelocityMax = 0.08f,
+			Gravity = new Vector3(0f, -0.015f, 0f),
+			ScaleAmountMin = 0.5f,
+			ScaleAmountMax = 1.6f,
+			Color = new Color(0.42f, 0.35f, 0.26f, 0.4f),
+			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+		});
+		// Thin streams of sand from cracks in the ceiling.
+		foreach (Vector3 crack in new[] { new Vector3(-2.2f, 3.95f, 2.2f), new Vector3(2.0f, 3.95f, 0.6f), new Vector3(-0.3f, 3.95f, 2.6f) })
+		{
+			debris.AddChild(new CpuParticles3D
+			{
+				Name = "SandTrickle",
+				Position = crack,
+				Amount = 140,
+				Lifetime = 1.4f,
+				Preprocess = 2f,
+				Mesh = new QuadMesh { Size = new Vector2(0.022f, 0.022f), Material = dust },
+				EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere,
+				EmissionSphereRadius = 0.04f,
+				Direction = Vector3.Down,
+				Spread = 4f,
+				InitialVelocityMin = 0.1f,
+				InitialVelocityMax = 0.3f,
+				Gravity = new Vector3(0f, -4f, 0f),
+				Color = dustColor with { A = 0.45f },
+				CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+			});
+		}
 	}
 
 	// Under the fade (layer 30), so it fades in and out with the room.

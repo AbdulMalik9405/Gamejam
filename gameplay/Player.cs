@@ -145,7 +145,7 @@ public partial class Player : CharacterBody3D
 			ShareHeldItem((float)delta);
 	}
 
-	// Turns this player into the mummy, on every machine: its body becomes the mummy (arms out, a running stride). On
+	// Turns this player into the mummy, on every machine: its body becomes the mummy (with a running stride). On
 	// the player's own machine it's also moved to `at` (only the owner moves a player; the rest follows by sync), and
 	// whatever it held is put away.
 	public void BecomeMummy(PackedScene mummy, Transform3D at, float scale)
@@ -162,7 +162,6 @@ public partial class Player : CharacterBody3D
 		{
 			Name = "Character",
 			Scene = mummy,
-			Reach = 1f,
 			WalkSpeed = 3f,
 			StrideLength = 1.5f,
 			LegSwingDegrees = 38f,
