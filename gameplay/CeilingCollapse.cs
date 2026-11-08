@@ -7,12 +7,11 @@ namespace Gamejam.Gameplay;
 
 /// <summary>
 /// The past character's death, which is how the present room's ceiling got its hole and rubble pile. When Trigger is
-/// solved (the last key turned in the present exit door), both players watch the past room: the ground rumbles, the
-/// Egyptian looks up as dust trickles down, the ceiling above the spot that's open in the present breaks, and the
+/// solved (the tile placed on the crypt's altar), both players watch the past room: the Egyptian walks in as the ground
+/// rumbles and dust trickles down, looks up, the ceiling above the spot that's open in the present breaks, and the
 /// rubble buries him (he goes limp, a ragdoll). Then it cuts to the same room, where he's laid in the royal coffin on
 /// the floor and its lid swings shut on him. The past player stays dead (a black screen), the present player gets
-/// their view back, and only then does this count as solved on their machine, so the passage opening (MoveOnSolved)
-/// plays straight after.
+/// their view back, and only then does this count as solved on their machine (for whatever comes next).
 /// </summary>
 public partial class CeilingCollapse : Puzzle
 {
@@ -25,7 +24,7 @@ public partial class CeilingCollapse : Puzzle
 	// The hole, the Egyptian's feet and the camera, in PastLevel's space.
 	[Export] public Vector3 HoleMin { get; set; } = new(2.7f, 4.0f, -0.8f);
 	[Export] public Vector3 HoleMax { get; set; } = new(4.3f, 4.4f, 0.8f);
-	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.7f);
+	[Export] public Vector3 VictimPosition { get; set; } = new(3.5f, 0f, 0.25f);
 	// Where he walks in from (PastLevel's space), arriving under the hole just before it gives.
 	[Export] public Vector3 WalkFrom { get; set; } = new(3.8f, 0f, -1.7f);
 	[Export] public Vector3 CameraPosition { get; set; } = new(0.8f, 1.5f, 0.9f);
@@ -59,11 +58,12 @@ public partial class CeilingCollapse : Puzzle
 	private const float LidTime = 1.3f;
 	private const float LidOpenDegrees = 105f;
 	private const float CoffinEnd = CoffinStart + LidDelay + LidTime + 1.5f;
-	private const float CoffinHalfWidth = 0.33f;
+	// The trough is the royal coffin's outline measured at this many points along its length.
+	private const int CoffinStations = 24;
+	private const float CoffinWall = 0.035f;
 	private const float CoffinWallHeight = 0.36f;
-	// The lid: a slab this thick, with the royal coffin's figure on it flattened to this much of its depth.
-	private const float LidThickness = 0.05f;
-	private const float ReliefDepthScale = 0.25f;
+	// The lid is the royal coffin flattened to this much of its depth.
+	private const float LidDepthScale = 0.45f;
 	private const int PlugCells = 3;
 	private const int RubbleCount = 26;
 	private const int PebbleCount = 14;
@@ -552,36 +552,33 @@ public partial class CeilingCollapse : Puzzle
 
 		Material wood = RoyalCoffin?.GetActiveMaterial(0) ?? _stoneMaterial;
 		Material gold = RoyalCoffin != null && RoyalCoffin.Mesh.GetSurfaceCount() > 1 ? RoyalCoffin.GetActiveMaterial(1) : wood;
-		float length = RoyalCoffin != null ? RoyalCoffin.GetAabb().Size.Y : 2.1f;
-		float halfLength = length * 0.5f - 0.04f;
-		// The open box: a floor and four walls.
-		AddBox(_coffin, wood, new Vector3(CoffinHalfWidth * 2f, 0.04f, halfLength * 2f), new Vector3(0f, 0.02f, 0f));
-		AddBox(_coffin, gold, new Vector3(0.04f, CoffinWallHeight, halfLength * 2f), new Vector3(-CoffinHalfWidth + 0.02f, CoffinWallHeight / 2f, 0f));
-		AddBox(_coffin, gold, new Vector3(0.04f, CoffinWallHeight, halfLength * 2f), new Vector3(CoffinHalfWidth - 0.02f, CoffinWallHeight / 2f, 0f));
-		AddBox(_coffin, gold, new Vector3(CoffinHalfWidth * 2f - 0.08f, CoffinWallHeight, 0.04f), new Vector3(0f, CoffinWallHeight / 2f, -halfLength + 0.02f));
-		AddBox(_coffin, gold, new Vector3(CoffinHalfWidth * 2f - 0.08f, CoffinWallHeight, 0.04f), new Vector3(0f, CoffinWallHeight / 2f, halfLength - 0.02f));
+		Aabb box = RoyalCoffin?.GetAabb() ?? new Aabb(new Vector3(-0.33f, 0f, -0.2f), new Vector3(0.66f, 2.1f, 0.4f));
+		float[] halfWidths = CoffinProfile(RoyalCoffin?.Mesh, box);
+		float halfLength = box.Size.Y * 0.5f;
+		float widest = 0f;
+		foreach (float w in halfWidths)
+			widest = Mathf.Max(widest, w);
 
-		// Him, on his back, feet towards -Z, face up, arms at his sides.
+		// The open coffin: a body-shaped trough following the royal coffin's outline, gold outside, wood inside.
+		_coffin.AddChild(new MeshInstance3D { Name = "Base", Mesh = CoffinShell(halfWidths, halfLength, gold, wood) });
+
+		// Him, on his back, feet towards -Z (the coffin's foot end), face up, arms at his sides.
 		var body = new CharacterModel { Name = "Entombed", Scene = VictimScene, Animate = false, ArmDownDegrees = 46f, ElbowBendDegrees = 6f };
 		_coffin.AddChild(body);
-		body.Transform = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(90f)), new Vector3(0f, 0.16f, -halfLength + 0.06f));
+		body.Transform = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(90f)), new Vector3(0f, 0.16f, -halfLength + 0.16f));
 
-		// The lid hinges on the +X top edge: a gold slab the exact size of the box, with the royal coffin's figure
-		// lying on it in low relief (its mesh, flattened), head end towards +Z.
-		_lidHinge = new Node3D { Name = "LidHinge", Position = new Vector3(CoffinHalfWidth, CoffinWallHeight, 0f) };
+		// The lid is the royal coffin itself, flattened, so its outline is the trough's. It hinges on the trough's
+		// widest +X edge and lies face up, head end towards +Z, its back on the walls when shut.
+		_lidHinge = new Node3D { Name = "LidHinge", Position = new Vector3(widest, CoffinWallHeight, 0f) };
 		_coffin.AddChild(_lidHinge);
-		AddBox(_lidHinge, gold, new Vector3(CoffinHalfWidth * 2f, LidThickness, halfLength * 2f), new Vector3(-CoffinHalfWidth, LidThickness / 2f, 0f));
 		if (RoyalCoffin?.Mesh != null)
 		{
-			Aabb box = RoyalCoffin.GetAabb();
-			var relief = new MeshInstance3D { Name = "Relief", Mesh = RoyalCoffin.Mesh };
+			var lid = new MeshInstance3D { Name = "Lid", Mesh = RoyalCoffin.Mesh };
 			for (int i = 0; i < RoyalCoffin.Mesh.GetSurfaceCount(); i++)
-				relief.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
-			// Fitted inside the slab's edge. Lying flat: its length (Y) runs along +Z and its face (-Z) looks up.
-			var fit = new Vector3((CoffinHalfWidth * 2f - 0.08f) / box.Size.X, (halfLength * 2f - 0.1f) / box.Size.Y, ReliefDepthScale);
-			var flat = new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(fit);
-			relief.Transform = new Transform3D(flat, new Vector3(-CoffinHalfWidth - box.GetCenter().X * fit.X, LidThickness + box.End.Z * fit.Z, -box.GetCenter().Y * fit.Y));
-			_lidHinge.AddChild(relief);
+				lid.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
+			var flat = new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(new Vector3(1f, 1f, LidDepthScale));
+			lid.Transform = new Transform3D(flat, new Vector3(-widest - box.GetCenter().X, box.End.Z * LidDepthScale, -box.GetCenter().Y));
+			_lidHinge.AddChild(lid);
 		}
 		_lidHinge.Rotation = new Vector3(0f, 0f, -Mathf.DegToRad(LidOpenDegrees));
 
@@ -592,9 +589,104 @@ public partial class CeilingCollapse : Puzzle
 		AnimateCoffin(0f);
 	}
 
-	private static void AddBox(Node3D parent, Material material, Vector3 size, Vector3 position)
+	// How wide the coffin is (half, from its centre line) at evenly spaced points from its foot (mesh Y min) to its head.
+	private static float[] CoffinProfile(Mesh mesh, Aabb box)
 	{
-		parent.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size, Material = material }, Position = position });
+		var half = new float[CoffinStations];
+		if (mesh == null)
+		{
+			System.Array.Fill(half, box.Size.X * 0.5f);
+			return half;
+		}
+		float step = box.Size.Y / (CoffinStations - 1);
+		float centre = box.GetCenter().X;
+		for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+		{
+			foreach (Vector3 v in mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+			{
+				int i = Mathf.Clamp(Mathf.RoundToInt((v.Y - box.Position.Y) / step), 0, CoffinStations - 1);
+				half[i] = Mathf.Max(half[i], Mathf.Abs(v.X - centre));
+			}
+		}
+		// Stations no vertex fell near take their neighbours' width.
+		for (int i = 1; i < CoffinStations; i++)
+			half[i] = half[i] > 0f ? half[i] : half[i - 1];
+		for (int i = CoffinStations - 2; i >= 0; i--)
+			half[i] = half[i] > 0f ? half[i] : half[i + 1];
+		for (int i = 0; i < CoffinStations; i++)
+			half[i] = Mathf.Max(half[i], CoffinWall * 3f);
+		return half;
+	}
+
+	// An open trough following the outline (feet at -Z, head at +Z): outer wall and rim in gold, inner wall and floor
+	// in wood.
+	private static ArrayMesh CoffinShell(float[] halfWidths, float halfLength, Material outside, Material inside)
+	{
+		int n = halfWidths.Length;
+		float h = CoffinWallHeight;
+		float floor = 0.03f;
+		// The outline loop: up the +X side from the foot, back down the -X side. Inner loop inset by the wall.
+		var outer = new Vector3[n * 2];
+		var inner = new Vector3[n * 2];
+		for (int i = 0; i < n; i++)
+		{
+			float z = -halfLength + 2f * halfLength * i / (n - 1);
+			float zIn = i == 0 ? z + CoffinWall : i == n - 1 ? z - CoffinWall : z;
+			float w = halfWidths[i];
+			outer[i] = new Vector3(w, 0f, z);
+			outer[2 * n - 1 - i] = new Vector3(-w, 0f, z);
+			inner[i] = new Vector3(w - CoffinWall, 0f, zIn);
+			inner[2 * n - 1 - i] = new Vector3(-(w - CoffinWall), 0f, zIn);
+		}
+
+		var gold = new SurfaceTool();
+		gold.Begin(Mesh.PrimitiveType.Triangles);
+		var wood = new SurfaceTool();
+		wood.Begin(Mesh.PrimitiveType.Triangles);
+		Vector3 up = Vector3.Up * h;
+		for (int i = 0; i < outer.Length; i++)
+		{
+			int j = (i + 1) % outer.Length;
+			Vector3 along = outer[j] - outer[i];
+			Vector3 outward = new Vector3(along.Z, 0f, -along.X).Normalized();
+			if (outward.Dot(outer[i] + outer[j]) < 0f)
+				outward = -outward;
+			Quad(gold, outer[i], outer[j], outer[j] + up, outer[i] + up, outward);
+			Quad(gold, outer[i] + up, outer[j] + up, inner[j] + up, inner[i] + up, Vector3.Up);
+			Quad(wood, inner[i] + Vector3.Up * floor, inner[j] + Vector3.Up * floor, inner[j] + up, inner[i] + up, -outward);
+		}
+		// The floor, strip by strip across the inner outline.
+		for (int i = 0; i < n - 1; i++)
+		{
+			Vector3 lift = Vector3.Up * floor;
+			Quad(wood, inner[i] + lift, inner[i + 1] + lift, inner[2 * n - 2 - i] + lift, inner[2 * n - 1 - i] + lift, Vector3.Up);
+		}
+
+		var mesh = new ArrayMesh();
+		gold.SetMaterial(outside);
+		gold.Commit(mesh);
+		wood.SetMaterial(inside);
+		wood.Commit(mesh);
+		return mesh;
+	}
+
+	// Two triangles facing `normal` (Godot's front faces wind clockwise, seen from the front).
+	private static void Quad(SurfaceTool tool, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal)
+	{
+		Tri(tool, a, b, c, normal);
+		Tri(tool, a, c, d, normal);
+	}
+
+	private static void Tri(SurfaceTool tool, Vector3 a, Vector3 b, Vector3 c, Vector3 normal)
+	{
+		if ((b - a).Cross(c - a).Dot(normal) > 0f)
+			(b, c) = (c, b);
+		foreach (Vector3 v in new[] { a, b, c })
+		{
+			tool.SetNormal(normal);
+			tool.SetUV(new Vector2(v.X + v.Y, v.Z));
+			tool.AddVertex(v);
+		}
 	}
 
 	private void AnimateCoffin(float c)
