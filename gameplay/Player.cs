@@ -58,6 +58,11 @@ public partial class Player : CharacterBody3D
 	private RayCast3D _interactRay;
 	private ShapeCast3D _aimAssist;
 	private KinematicCollision3D _stepCollision;
+	// The last place this player stood safely on the floor: anyone who falls out of the world is put back there. Well
+	// below the trap room's spike pit, which kills as it's meant to.
+	private Vector3 _lastSafe;
+	private bool _hasSafe;
+	private const float OutOfWorldDepth = -9f;
 	private Inventory _inventory;
 	private HeldItemView _heldView;
 	private float _gravity;
@@ -270,6 +275,7 @@ public partial class Player : CharacterBody3D
 		Vector3 before = GlobalPosition;
 		MoveAndSlide();
 		StepUp(before, horizontal * dt);
+		KeepInWorld();
 
 		UpdateInteractTarget();
 	}
@@ -278,6 +284,20 @@ public partial class Player : CharacterBody3D
 	{
 		if (_isLocal && _inventory != null)
 			_inventory.Changed -= OnInventoryChanged;
+	}
+
+	private void KeepInWorld()
+	{
+		if (IsOnFloor() && GlobalPosition.Y > OutOfWorldDepth + 6f)
+		{
+			_lastSafe = GlobalPosition;
+			_hasSafe = true;
+		}
+		else if (GlobalPosition.Y < OutOfWorldDepth && _hasSafe)
+		{
+			GlobalPosition = _lastSafe;
+			Velocity = Vector3.Zero;
+		}
 	}
 
 	// When walking into a low ledge stopped us, tries the move again from MaxStepHeight up and settles onto the

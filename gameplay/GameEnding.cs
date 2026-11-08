@@ -16,8 +16,14 @@ public partial class GameEnding : Node
 	[Export] public float ScreenTime { get; set; } = 20f;
 	[Export] public float FadeTime { get; set; } = 0.6f;
 	// The win line: a box across the exit stair's middle step, in the present map's (level1old) space.
-	[Export] public Vector3 WinZoneCenter { get; set; } = new Vector3(-23.05f, 5.9f, 16.3f);
-	[Export] public Vector3 WinZoneSize { get; set; } = new Vector3(0.5f, 2.4f, 1.4f);
+	// The top of the exit stair and the landing outside (in the present map's space): the game is won once every player
+	// is in it at the same time.
+	[Export] public Vector3 WinZoneCenter { get; set; } = new Vector3(-26.6f, 7.6f, 16.3f);
+	[Export] public Vector3 WinZoneSize { get; set; } = new Vector3(7.6f, 5f, 2.8f);
+	[Export] public string WaitForPartnerMessage { get; set; } = "Wait for your partner at the exit.";
+	// Invisible walls round the landing, so nobody walks off into the desert (in the present map's space).
+	[Export] public Vector3 FenceMin { get; set; } = new Vector3(-30.7f, 6.4f, 14.1f);
+	[Export] public Vector3 FenceMax { get; set; } = new Vector3(-27.9f, 13f, 18.5f);
 	[Export] public Color LoseColor { get; set; } = new Color(1f, 0.12f, 0.08f);
 	[Export] public Color WinColor { get; set; } = new Color(0.15f, 0.45f, 1f);
 	// The ending camera, in the room's space: in front of the circles, looking back at both players.
@@ -33,6 +39,8 @@ public partial class GameEnding : Node
 	public bool HasEnded { get; private set; }
 
 	private Node3D _room;
+	// Host: the players standing in the win zone right now.
+	private readonly System.Collections.Generic.HashSet<long> _atExit = new();
 	// The lose screen's little scene: both drop to their knees, then the past character gets up and lays into the
 	// explorer, who cowers.
 	private CharacterModel _loser;
@@ -92,12 +100,68 @@ public partial class GameEnding : Node
 		zone.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = WinZoneSize } });
 		present.AddChild(zone);
 		zone.Position = WinZoneCenter;
-		// Each machine only reports its own player.
+		// Each machine only reports its own player; the host ends the game once everyone's there.
 		zone.BodyEntered += body =>
 		{
-			if (body is Player player && player.IsMultiplayerAuthority())
-				RequestEnd(true);
+			if (body is not Player player || !player.IsMultiplayerAuthority())
+				return;
+			ReportAtExit(true);
+			if (GameState.Instance != null && GameState.Instance.Players.Count > 1 && WaitForPartnerMessage != "")
+				Events.Instance?.EmitSignal(Events.SignalName.ShowMessage, WaitForPartnerMessage, 4f);
 		};
+		zone.BodyExited += body =>
+		{
+			if (body is Player player && player.IsMultiplayerAuthority())
+				ReportAtExit(false);
+		};
+		AddFence(present);
+	}
+
+	private void ReportAtExit(bool there)
+	{
+		// Leaving the zone as the game shuts down (after it's won) doesn't count.
+		if (HasEnded || !IsInsideTree() || Multiplayer?.MultiplayerPeer == null)
+			return;
+		if (Multiplayer.IsServer())
+			SetAtExit(Multiplayer.GetUniqueId(), there);
+		else
+			RpcId(1, MethodName.SendAtExit, there);
+	}
+
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	private void SendAtExit(bool there)
+	{
+		if (Multiplayer.IsServer())
+			SetAtExit(Multiplayer.GetRemoteSenderId(), there);
+	}
+
+	// Host only.
+	private void SetAtExit(long peer, bool there)
+	{
+		if (there)
+			_atExit.Add(peer);
+		else
+			_atExit.Remove(peer);
+		int needed = GameState.Instance?.Players.Count ?? 1;
+		if (_atExit.Count >= Mathf.Max(needed, 1))
+			RequestEnd(true);
+	}
+
+	// Four walls nobody can see or get past, round the landing at the top of the exit stair (the stair side open).
+	private void AddFence(Node3D present)
+	{
+		var fence = new StaticBody3D { Name = "ExitFence", CollisionLayer = Layers.World, CollisionMask = 0 };
+		present.AddChild(fence);
+		Vector3 min = FenceMin, max = FenceMax;
+		Vector3 size = max - min;
+		Vector3 mid = (min + max) * 0.5f;
+		const float thick = 0.2f;
+		void Wall(Vector3 centre, Vector3 extent) =>
+			fence.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = extent }, Position = centre });
+		Wall(new Vector3(min.X, mid.Y, mid.Z), new Vector3(thick, size.Y, size.Z));
+		Wall(new Vector3(mid.X, mid.Y, min.Z), new Vector3(size.X, size.Y, thick));
+		Wall(new Vector3(mid.X, mid.Y, max.Z), new Vector3(size.X, size.Y, thick));
+		Wall(new Vector3(mid.X, max.Y, mid.Z), new Vector3(size.X, thick, size.Z));
 	}
 
 	public override void _Process(double delta)
