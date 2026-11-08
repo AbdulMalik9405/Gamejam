@@ -5,8 +5,8 @@ namespace Gamejam.Net;
 
 // The lobby backdrop and the intro, played locally on each peer. In the lobby the camera sways gently over the
 // intact tomb. Once both players are in, each sees a slow glide round their own era's room; then a time rupture
-// ripples in and, at its height, gives a glimpse of the same spot in the other era, before pulling back into a white
-// flash that softens into the logo; then each player appears at their era's spawn with "Solve the puzzle".
+// ripples in and, at its height, gives a glimpse of the same spot in the other era, then settles back in your own room
+// for a moment before a white flash that softens into the logo; then each player appears at their era's spawn with "Solve the puzzle".
 // Visual only; the one thing it touches is pausing and placing the local player.
 public partial class Intro : Node
 {
@@ -20,6 +20,8 @@ public partial class Intro : Node
 	[Export] public float SwayDuration { get; set; } = 5.0f;
 	[Export] public float RuptureDuration { get; set; } = 1.5f;
 	[Export] public float PeekDuration { get; set; } = 2.4f;
+	// Back in your own room after the glimpse, the rupture settling, before the flash and the logo.
+	[Export] public float ReturnDuration { get; set; } = 2.5f;
 	[Export] public float FlashDuration { get; set; } = 0.5f;
 	[Export] public float LogoFadeIn { get; set; } = 1.0f;
 	[Export] public float LogoHold { get; set; } = 1.8f;
@@ -113,7 +115,8 @@ public partial class Intro : Node
 		_time += dt;
 		float t = _time;
 		float peekStart = SwayDuration + RuptureDuration;
-		float flashStart = peekStart + PeekDuration;
+		float returnStart = peekStart + PeekDuration;
+		float flashStart = returnStart + ReturnDuration;
 		float logoStart = flashStart + FlashDuration;
 
 		if (t < logoStart)
@@ -121,10 +124,16 @@ public partial class Intro : Node
 			// The rupture builds to full, eases a little while the other era shows (rippling the whole time), swells
 			// again as it pulls back, and the flash takes over.
 			float rupture = Mathf.Clamp((t - SwayDuration) / RuptureDuration, 0f, 1f);
-			if (t >= peekStart && t < flashStart)
+			if (t >= peekStart && t < returnStart)
 				rupture = 1f - 0.4f * Mathf.Sin((t - peekStart) / PeekDuration * Mathf.Pi);
+			// Back home, the ripples die down to a shimmer, then swell again into the flash.
+			if (t >= returnStart)
+			{
+				float r = (t - returnStart) / ReturnDuration;
+				rupture = Mathf.Lerp(1f, 0.2f, Smooth(r / 0.45f)) + 0.8f * Smooth((r - 0.75f) / 0.25f);
+			}
 			float flash = Mathf.Clamp((t - flashStart) / FlashDuration, 0f, 1f);
-			bool peeking = t >= peekStart && t < flashStart;
+			bool peeking = t >= peekStart && t < returnStart;
 			UpdateTourCamera(t, rupture, peeking ? _otherRoom : _ownRoom);
 			_rupture.Visible = rupture > 0f;
 			_ruptureMaterial.SetShaderParameter(StrengthParam, rupture);
@@ -199,7 +208,7 @@ public partial class Intro : Node
 	// keeps going through the glimpse, so the other era is seen from the same spot.
 	private void UpdateTourCamera(float t, float rupture, Vector3 room)
 	{
-		float total = SwayDuration + RuptureDuration + PeekDuration + FlashDuration;
+		float total = SwayDuration + RuptureDuration + PeekDuration + ReturnDuration + FlashDuration;
 		float k = Smooth(t / total);
 		Vector3 position = room + TourFrom.Lerp(TourTo, k);
 		Vector3 target = room + TourLookFrom.Lerp(TourLookTo, k);
