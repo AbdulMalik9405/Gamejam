@@ -50,6 +50,8 @@ public partial class RevealCinematic : Node
 	// Returns false when there's no local player to show it to; the caller then just starts the rise.
 	public static bool Play(Node host, Node3D target, Vector3 focus, float riseTime, Color glowColor, Action startRise)
 	{
+		if (GameState.Instance?.SkippingStages == true)
+			return false;
 		var player = GameState.Instance?.GetPlayerNode(host.Multiplayer.GetUniqueId()) as Player;
 		Camera3D camera = player?.GetNodeOrNull<Camera3D>("Camera");
 		if (camera == null)

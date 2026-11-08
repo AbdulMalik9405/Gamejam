@@ -102,6 +102,14 @@ public partial class RiseOnSolved : Node
 
 	private void StartRise()
 	{
+		// Fast-forwarded (admin panel): straight to where it ends up.
+		if (GameState.Instance?.SkippingStages == true)
+		{
+			_opening?.OpenNow();
+			Target.Position = _endPosition;
+			OnRiseFinished();
+			return;
+		}
 		if (_opening != null)
 			_opening.Open(Rise);
 		else

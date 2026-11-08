@@ -99,7 +99,7 @@ public partial class KeyholeLock : Puzzle
 
 	private static void Message(string text)
 	{
-		if (text != "" && Events.Instance != null)
+		if (text != "" && Events.Instance != null && GameState.Instance?.SkippingStages != true)
 			Events.Instance.EmitSignal(Events.SignalName.ShowMessage, text, 3f);
 	}
 }

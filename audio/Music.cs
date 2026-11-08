@@ -119,7 +119,7 @@ public partial class Music : Node
 	// Puzzles are solved on the solver's machine only, so the sting is sent to both.
 	private void OnPuzzleSolved()
 	{
-		if (_gameEnding != null && _gameEnding.HasEnded)
+		if ((_gameEnding != null && _gameEnding.HasEnded) || GameState.Instance?.SkippingStages == true)
 			return;
 		Rpc(MethodName.PlaySting);
 	}

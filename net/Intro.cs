@@ -65,8 +65,8 @@ public partial class Intro : Node
 	private Control _logo;
 	private Control _message;
 	private Label _heading;
-	// The explorer's story card: shown on the parchment after the logo, before they appear in the tomb, until they
-	// press Space. _storyTime counts from when it starts, -1 when there's none; _storyDone once they've continued.
+	// The story card, for both players (their own lines): shown on the parchment after the logo, before they appear in
+	// their room, until they press Space. _storyTime counts from when it starts, -1 when there's none; _storyDone once they've continued.
 	private Control _story;
 	private Label _storyPrompt;
 	private float _storyTime = -1f;
@@ -169,7 +169,7 @@ public partial class Intro : Node
 			return;
 		}
 
-		// The explorer reads their story on the parchment first, and carries on when they press Space.
+		// Each player reads their story on the parchment first, and carries on when they press Space.
 		if (_story != null && !_storyDone)
 		{
 			_storyTime = Mathf.Max(_storyTime, 0f) + dt;
@@ -231,12 +231,12 @@ public partial class Intro : Node
 		_otherRoom = present ? PastRoomCentre : PresentRoomCentre;
 		_heading.Text = present ? PresentTitle : PastTitle;
 		_subtitle.Text = present ? PresentLine : PastLine;
-		// The explorer gets their lines on the story card before they appear, so in the tomb only the tip shows.
-		_story = present && !_skip ? BuildStory() : null;
+		// Both get their lines on the story card before they appear, so in the room only the explorer's tip shows.
+		_story = !_skip ? BuildStory(present ? PresentTitle : PastTitle, present ? PresentLine : PastLine) : null;
 		_storyDone = false;
 		_storyTime = -1f;
-		_heading.Visible = !present;
-		_subtitle.Visible = !present;
+		_heading.Visible = false;
+		_subtitle.Visible = false;
 		// The blank first line spaces it off from the subtitle.
 		_tip.Text = "\n" + PresentTip;
 		_tip.Visible = present && PresentTip != "";
@@ -408,8 +408,8 @@ public partial class Intro : Node
 		_message = box;
 	}
 
-	// Dark ink on the parchment: the explorer's two lines and, below, "[Space to continue]".
-	private Control BuildStory()
+	// Dark ink on the parchment: the player's two lines and, below, "[Space to continue]".
+	private Control BuildStory(string titleText, string lineText)
 	{
 		var box = new VBoxContainer
 		{
@@ -431,8 +431,8 @@ public partial class Intro : Node
 			box.AddChild(label);
 			return label;
 		}
-		Line(PresentTitle, 52, ink);
-		Line(PresentLine, 34, ink);
+		Line(titleText, 52, ink);
+		Line(lineText, 34, ink);
 		box.AddChild(new Control { CustomMinimumSize = new Vector2(0f, 40f), MouseFilter = Control.MouseFilterEnum.Ignore });
 		_storyPrompt = Line("[Space to continue]", 24, new Color(0.45f, 0.32f, 0.16f));
 		_storyPrompt.Modulate = Colors.Transparent;

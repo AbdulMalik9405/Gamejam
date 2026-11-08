@@ -54,6 +54,13 @@ public partial class MoveOnSolved : Node
 		if (_started)
 			return;
 		_started = true;
+		// Fast-forwarded (admin panel, on every machine at once): straight to where it ends up.
+		if (GameState.Instance?.SkippingStages == true)
+		{
+			if (IsInstanceValid(Target))
+				Target.Position = _start + Offset;
+			return;
+		}
 		if (SyncToOthers && Multiplayer.HasMultiplayerPeer()
 			&& Multiplayer.MultiplayerPeer.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected)
 			Rpc(MethodName.MoveForOthers);
@@ -102,6 +109,13 @@ public partial class MoveOnSolved : Node
 		if (PlayCinematic && RevealCinematic.Play(this, Target, focus, Duration, Colors.Black, StartMove))
 			return;
 		StartMove();
+	}
+
+	// Back where it began, e.g. the passage wall closing again after the collapse (admin panel fast-forward).
+	public void ResetToStart()
+	{
+		if (IsInstanceValid(Target))
+			Target.Position = _start;
 	}
 
 	private void StartMove()

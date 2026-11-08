@@ -22,6 +22,9 @@ public partial class GameState : Node
 	public IReadOnlyDictionary<long, PlayerInfo> Players => _players;
 	public Era LocalEra => _players.TryGetValue(Multiplayer.GetUniqueId(), out PlayerInfo info) ? info.Era : Era.Present;
 	public bool IsRunning { get; private set; }
+	// While the admin panel (net/AdminPanel.cs) fast-forwards through puzzles, rewards take their finished state at once:
+	// no cutscenes, stings, messages or network calls.
+	public bool SkippingStages { get; set; }
 	// Cutscenes pause the timer for everyone: this machine's own pauses, and (on the host) which peers have one going.
 	// The host's clock is the only real one; it's sent out a few times a second so both players see the same time.
 	private int _timerPauseCount;
