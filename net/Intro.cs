@@ -22,6 +22,9 @@ public partial class Intro : Node
 	[Export] public float RevealDuration { get; set; } = 0.9f;
 	[Export] public float MessageHold { get; set; } = 2.0f;
 	[Export] public float MessageFade { get; set; } = 1.5f;
+	// Shown under the message to the present player, who starts with the torch, with extra time to read it.
+	[Export] public string PresentTip { get; set; } = "Tip: with your torch out, press F on any wall to mount it there, and F again to take it back.";
+	[Export] public float TipHold { get; set; } = 2.5f;
 	[Export] public float DollySpeed { get; set; } = 0.12f;
 	[Export] public float MaxShake { get; set; } = 0.08f;
 
@@ -48,6 +51,8 @@ public partial class Intro : Node
 	private Control _logo;
 	private Control _message;
 	private Label _subtitle;
+	private Label _tip;
+	private float _hold;
 	private Node3D _localPlayer;
 	private Transform3D _baseView;
 	private Phase _phase = Phase.Lobby;
@@ -127,9 +132,9 @@ public partial class Intro : Node
 
 		float sinceMessage = sinceReveal - RevealDuration * 0.5f;
 		float fadeIn = Mathf.Clamp(sinceMessage / MessageFadeIn, 0f, 1f);
-		float fadeOut = 1f - Mathf.Clamp((sinceMessage - MessageFadeIn - MessageHold) / MessageFade, 0f, 1f);
+		float fadeOut = 1f - Mathf.Clamp((sinceMessage - MessageFadeIn - _hold) / MessageFade, 0f, 1f);
 		_message.Modulate = new Color(1f, 1f, 1f, Mathf.Min(fadeIn, fadeOut));
-		if (sinceMessage >= MessageFadeIn + MessageHold + MessageFade)
+		if (sinceMessage >= MessageFadeIn + _hold + MessageFade)
 			Finish();
 	}
 
@@ -146,7 +151,12 @@ public partial class Intro : Node
 			_players.Visible = false;
 
 		_camera.MakeCurrent();
-		_subtitle.Text = GameState.Instance.LocalEra == Era.Past ? "You are in the past" : "You are in the present";
+		bool present = GameState.Instance.LocalEra == Era.Present;
+		_subtitle.Text = present ? "You are in the present" : "You are in the past";
+		// The blank first line spaces it off from the subtitle.
+		_tip.Text = "\n" + PresentTip;
+		_tip.Visible = present && PresentTip != "";
+		_hold = MessageHold + (_tip.Visible ? TipHold : 0f);
 		_ruptureMaterial.SetShaderParameter(StrengthParam, 0f);
 		_ruptureMaterial.SetShaderParameter(FlashParam, 0f);
 		_backdrop.Color = Colors.Transparent;
@@ -283,6 +293,8 @@ public partial class Intro : Node
 		box.AddChild(MakeLabel("Solve the puzzle", 56));
 		_subtitle = MakeLabel("", 24);
 		box.AddChild(_subtitle);
+		_tip = MakeLabel("", 20);
+		box.AddChild(_tip);
 		overlay.AddChild(box);
 		_message = box;
 	}
