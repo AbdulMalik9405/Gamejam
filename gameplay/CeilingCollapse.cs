@@ -57,6 +57,10 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 StairsBottom { get; set; } = new(0f, 0f, 5.35f);
 	[Export] public Vector3 StairsTop { get; set; } = new(0f, 1.6f, 9.1f);
 	[Export] public Vector3 CryptDoorway { get; set; } = new(0f, 1.6f, 13.6f);
+	// The trap room shot after the way back has closed (in the mummy's parent's space), and its line.
+	[Export] public Vector3 TrapCameraPosition { get; set; } = new(-6.0f, 3.5f, 18.7f);
+	[Export] public Vector3 TrapCameraTarget { get; set; } = new(-12.5f, 0.4f, 15.6f);
+	[Export] public string TrapTitle { get; set; } = "Work together to pass these obstacles";
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;
@@ -98,6 +102,17 @@ public partial class CeilingCollapse : Puzzle
 	private const float RunStopShort = 1.3f;
 	// The crypt's doorway, along the mummy's parent's Z: the run never goes past it.
 	private const float CryptDoorZ = 13.4f;
+	// The fright, from the mummy reaching the explorer: recoil, whirl round, run for the passage to the main room
+	// (stopping at FleeStop, in the mummy's parent's space) while the wall there rises back up and slams shut.
+	private const float RecoilEnd = 0.45f;
+	private const float TurnEnd = 0.95f;
+	private const float FleeEnd = 2.45f;
+	private const float WallRise = 1.45f;
+	private const float WallSlam = 2.0f;
+	private const float ScaredEnd = 3.1f;
+	private static readonly Vector3 FleeStop = new(0f, 1.6f, 11.0f);
+	// Then the trap room, with the line telling them what's next.
+	private const float TrapShotTime = 4.2f;
 	// The trough is the royal coffin's outline measured at this many points along its length.
 	private const int CoffinStations = 24;
 	private const float CoffinWall = 0.035f;
@@ -146,6 +161,18 @@ public partial class CeilingCollapse : Puzzle
 	private CpuParticles3D _slamDust;
 	private bool _inMummy, _coffinBroken, _atPov;
 	private float _mummyEnd = -1f;
+	// The explorer's fright and flight (from when the mummy reaches them), the wall slamming shut ahead of them, then
+	// the trap room shot.
+	private float _scaredStart = -1f;
+	private Vector3 _fleeFrom;
+	private Vector3 _fleeTo;
+	private Basis _fleeLook;
+	private Node3D _wall;
+	private Vector3 _wallDown;
+	private Vector3 _wallUp;
+	private bool _wallSlammed;
+	private float _trapStart = -1f;
+	private Camera3D _trapCamera;
 	private bool _modernBuilt;
 	private float _modernEnd = float.MaxValue;
 	private float _mummyShotStart = float.MaxValue;
@@ -237,8 +264,10 @@ public partial class CeilingCollapse : Puzzle
 			fade = 1f;
 		else if (t < _mummyShotStart)
 			fade = Mathf.Max(1f - Mathf.Clamp((t - ModernWalkStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - _modernEnd) / FadeTime, 0f, 1f));
-		else
+		else if (_trapStart < 0f)
 			fade = Mathf.Max(1f - Mathf.Clamp((t - _mummyShotStart) / FadeTime, 0f, 1f), _mummyEnd >= 0f ? Mathf.Clamp((t - _mummyEnd) / FadeTime, 0f, 1f) : 0f);
+		else
+			fade = Mathf.Max(1f - Mathf.Clamp((t - _trapStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - _trapStart - TrapShotTime) / FadeTime, 0f, 1f));
 		_fade.Color = new Color(0f, 0f, 0f, fade);
 
 		if (!_inCoffin)
@@ -257,17 +286,26 @@ public partial class CeilingCollapse : Puzzle
 			AnimateModern(t, dt);
 		if (!_inMummy && t >= _mummyShotStart)
 			CutToMummy();
-		if (_inMummy && !_cutBack)
+		if (_inMummy && !_cutBack && _trapStart < 0f)
 			AnimateMummy(t, t - _mummyShotStart, dt);
+		if (_trapStart < 0f && _mummyEnd >= 0f && t >= _mummyEnd + FadeTime)
+			CutToTrapRoom(t);
+		if (_trapStart >= 0f)
+		{
+			float title = t - _trapStart;
+			_title.Modulate = new Color(1f, 1f, 1f, Mathf.Clamp((title - 0.4f) / 0.8f, 0f, 1f) * (1f - Mathf.Clamp((title - TrapShotTime + 0.9f) / 0.8f, 0f, 1f)));
+			_trapCamera.GlobalPosition = _crypt.ToGlobal(TrapCameraPosition + new Vector3(-0.5f, 0f, 0f) * Mathf.SmoothStep(0f, 1f, title / TrapShotTime));
+			_trapCamera.LookAt(_crypt.ToGlobal(TrapCameraTarget), Vector3.Up);
+		}
 
 		if (!_broke && t >= BreakTime)
 			Break();
 		if (!_fell && t >= FallTime)
 			Fall();
 
-		if (!_cutBack && _mummyEnd >= 0f && t >= _mummyEnd + FadeTime)
+		if (!_cutBack && _trapStart >= 0f && t >= _trapStart + TrapShotTime + FadeTime)
 			CutBack();
-		if (_cutBack && t >= _mummyEnd + FadeTime * 2f)
+		if (_cutBack && t >= _trapStart + TrapShotTime + FadeTime * 2f)
 			Finish();
 	}
 
@@ -596,6 +634,20 @@ public partial class CeilingCollapse : Puzzle
 			Mummy.QueueFree();
 			return;
 		}
+	}
+
+	// The explorer is where they ran to, by the sealed wall, turned back towards the crypt (and the trap room beyond).
+	// Only their own machine moves them; the other follows by sync.
+	private void PlaceExplorerAtWall()
+	{
+		Player explorer = PresentPlayer();
+		if (explorer == null || !explorer.IsMultiplayerAuthority() || _crypt == null || _scaredStart < 0f)
+			return;
+		explorer.GlobalPosition = _crypt.ToGlobal(FleeStop with { X = _crypt.ToLocal(_fleeTo).X });
+		explorer.Rotation = new Vector3(0f, _crypt.GlobalRotation.Y + Mathf.Pi, 0f);
+		explorer.Velocity = Vector3.Zero;
+		if (explorer.GetNodeOrNull<Camera3D>("Camera") is Camera3D camera)
+			camera.Rotation = Vector3.Zero;
 	}
 
 	private Player PresentPlayer()
@@ -1430,6 +1482,11 @@ public partial class CeilingCollapse : Puzzle
 			}
 			left -= segment;
 		}
+		if (_scaredStart >= 0f)
+		{
+			Scared(t, dt);
+			return;
+		}
 		Mummy.Position = at;
 		heading.Y = 0f;
 		if (heading.LengthSquared() > 0.0001f)
@@ -1437,8 +1494,8 @@ public partial class CeilingCollapse : Puzzle
 			float yaw = Mathf.Atan2(-heading.X, -heading.Z);
 			Mummy.Rotation = new Vector3(0f, Mathf.LerpAngle(Mummy.Rotation.Y, yaw, 1f - Mathf.Exp(-12f * dt)), 0f);
 		}
-		if (_mummyEnd < 0f && distance >= _mummyPathLength)
-			_mummyEnd = t + 0.35f;
+		if (distance >= _mummyPathLength)
+			StartScared(t);
 
 		// The explorer's eyes follow it in, with a jolt as it closes.
 		Vector3 head = Mummy.GlobalPosition + Vector3.Up * 1.45f;
@@ -1450,12 +1507,126 @@ public partial class CeilingCollapse : Puzzle
 		_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
 	}
 
+	// The mummy is on them: the explorer's fright begins. The passage wall that sank to let them into the crypt is
+	// found, ready to come back up.
+	private void StartScared(float t)
+	{
+		_scaredStart = t;
+		_fleeFrom = _camera.GlobalPosition;
+		_fleeTo = _crypt.ToGlobal(FleeStop with { X = _crypt.ToLocal(_fleeFrom).X * 0.3f }) + Vector3.Up * 1.55f;
+		Vector3 away = _fleeTo - _fleeFrom;
+		away.Y = 0f;
+		_fleeLook = Basis.LookingAt(away.Normalized(), Vector3.Up);
+		var opener = GetTree().CurrentScene?.FindChild("PassageOpener", true, false) as MoveOnSolved;
+		_wall = opener?.Target;
+		if (_wall != null)
+		{
+			_wallDown = _wall.Position;
+			_wallUp = _wallDown - opener.Offset;
+		}
+	}
+
+	private void Scared(float t, float dt)
+	{
+		float s = t - _scaredStart;
+		Vector3 eye;
+		Basis look;
+		float shake;
+		Basis atMummy = Basis.LookingAt(Mummy.GlobalPosition + Vector3.Up * 1.45f - _fleeFrom, Vector3.Up);
+		if (s < RecoilEnd)
+		{
+			// A start: the head jerks back and up, and the explorer stumbles a step back.
+			float k = Mathf.Sin(Mathf.Clamp(s / RecoilEnd, 0f, 1f) * Mathf.Pi * 0.5f);
+			Vector3 back = (_fleeFrom - Mummy.GlobalPosition) with { Y = 0f };
+			eye = _fleeFrom + back.Normalized() * 0.25f * k;
+			look = atMummy * new Basis(Vector3.Right, Mathf.DegToRad(8f) * k);
+			shake = 0.03f * (1f - k * 0.5f);
+		}
+		else if (s < TurnEnd)
+		{
+			// Whirls round towards the way out.
+			float k = Mathf.SmoothStep(0f, 1f, (s - RecoilEnd) / (TurnEnd - RecoilEnd));
+			Vector3 back = (_fleeFrom - Mummy.GlobalPosition) with { Y = 0f };
+			eye = _fleeFrom + back.Normalized() * 0.25f;
+			look = new Basis(atMummy.GetRotationQuaternion().Normalized().Slerp(_fleeLook.GetRotationQuaternion().Normalized(), k));
+			shake = 0.015f;
+		}
+		else
+		{
+			// Runs for it, slowing to a stop as the wall slams up ahead.
+			float k = Mathf.Clamp((s - TurnEnd) / (FleeEnd - TurnEnd), 0f, 1f);
+			float eased = 1f - Mathf.Pow(1f - k, 2.2f);
+			Vector3 start = _fleeFrom + ((_fleeFrom - Mummy.GlobalPosition) with { Y = 0f }).Normalized() * 0.25f;
+			eye = start.Lerp(_fleeTo, eased);
+			// Running bob, dying away as they stop.
+			eye += Vector3.Up * Mathf.Sin(s * 17f) * 0.045f * (1f - k);
+			look = _fleeLook * new Basis(Vector3.Forward, Mathf.Sin(s * 8.5f) * 0.035f * (1f - k));
+			shake = 0.006f;
+		}
+
+		// The wall comes back up, slowly then fast, and slams into place.
+		if (_wall != null && s >= WallRise)
+		{
+			float w = Mathf.Clamp((s - WallRise) / (WallSlam - WallRise), 0f, 1f);
+			_wall.Position = _wallDown.Lerp(_wallUp, w * w);
+			if (!_wallSlammed && w >= 1f)
+			{
+				_wallSlammed = true;
+				Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "door_slam", _wall.GlobalPosition);
+				var dust = (CpuParticles3D)_burst.Duplicate();
+				dust.EmissionRingRadius = 0.9f;
+				dust.EmissionRingInnerRadius = 0.2f;
+				_crypt.AddChild(dust);
+				dust.GlobalPosition = _crypt.ToGlobal(FleeStop with { Z = FleeStop.Z - 1.3f });
+				dust.Emitting = true;
+			}
+		}
+		if (_wallSlammed)
+			shake = Mathf.Max(shake, Mathf.Lerp(0.06f, 0f, Mathf.Clamp((s - WallSlam) / 0.7f, 0f, 1f)));
+
+		_camera.GlobalPosition = eye;
+		_camera.GlobalBasis = look.Orthonormalized();
+		_camera.HOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+		_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+
+		// The mummy comes after them, stopping a little behind.
+		Vector3 chase = _crypt.ToLocal(eye) with { Y = MummyExit.Y };
+		Vector3 from = Mummy.Position;
+		Vector3 toward = chase - from;
+		toward.Y = 0f;
+		if (toward.Length() > 1.6f && s > RecoilEnd)
+		{
+			Mummy.Position = from + toward.Normalized() * Mathf.Min(2.6f * dt, toward.Length() - 1.6f);
+			float yaw = Mathf.Atan2(-toward.X, -toward.Z);
+			Mummy.Rotation = new Vector3(0f, Mathf.LerpAngle(Mummy.Rotation.Y, yaw, 1f - Mathf.Exp(-10f * dt)), 0f);
+		}
+
+		if (_mummyEnd < 0f && s >= ScaredEnd)
+			_mummyEnd = t;
+	}
+
+	// The trap room: the only way on now. Its line comes up over the shot.
+	private void CutToTrapRoom(float t)
+	{
+		_trapStart = t;
+		_camera.HOffset = 0f;
+		_camera.VOffset = 0f;
+		_trapCamera = new Camera3D { Name = "TrapCamera", Fov = 60f };
+		AddChild(_trapCamera);
+		_trapCamera.GlobalPosition = _crypt.ToGlobal(TrapCameraPosition);
+		_trapCamera.LookAt(_crypt.ToGlobal(TrapCameraTarget), Vector3.Up);
+		_trapCamera.MakeCurrent();
+		_title.Text = TrapTitle;
+		_title.Modulate = Colors.Transparent;
+	}
+
 	private void CutBack()
 	{
 		_cutBack = true;
 		SetPastPlayersShown(true);
 		SetPresentPlayersShown(true);
 		HandMummyToPastPlayer();
+		PlaceExplorerAtWall();
 		_camera.HOffset = 0f;
 		_camera.VOffset = 0f;
 		Camera3D playerCamera = _localPlayer?.GetNodeOrNull<Camera3D>("Camera");
