@@ -7,7 +7,7 @@ namespace Gamejam.Gameplay;
 // The present's spike-pit room: the step blocks hang up by their rods and only come down while someone holds a lever
 // (hold interact on it; letting go, or walking away, releases it). One player holds lever 1 while the other crosses and
 // holds lever 2, then the first crosses. If no lever is held any more, the blocks jolt back up and whoever stands on one
-// stumbles off into the spikes (death screen, then back at the start platform). Falling in any other way kills too.
+// stumbles off into the spikes (death screen, then the game is lost: GameEnding). Falling in any other way kills too.
 // Each machine checks only its own player; lever holds are sent to both.
 public partial class TrapBridge : Node
 {
@@ -27,6 +27,8 @@ public partial class TrapBridge : Node
 	[Export] public string DeathTitle { get; set; } = "IMPALED";
 	[Export] public string DeathText { get; set; } = "The blocks rose without a hand on the lever.";
 	[Export] public float DeathScreenTime { get; set; } = 4f;
+	// How long the death screen shows before the lose ending (gameplay/GameEnding.cs) takes over.
+	[Export] public float LoseDelay { get; set; } = 2.5f;
 
 	private readonly List<Node3D> _levers = new();
 	private readonly List<Basis> _leverRest = new();
@@ -322,6 +324,19 @@ public partial class TrapBridge : Node
 		Tween show = CreateTween();
 		show.TweenProperty(fade, "color", new Color(0.12f, 0f, 0f, 1f), 0.35f);
 		show.TweenProperty(box, "modulate", Colors.White, 0.6f);
+		// A death in the trap loses the game for both (gameplay/GameEnding.cs). Without one, back to the start.
+		GameEnding ending = null;
+		foreach (Node node in GetTree().GetNodesInGroup("game_ending"))
+			ending ??= node as GameEnding;
+		if (ending != null)
+		{
+			await ToSignal(GetTree().CreateTimer(LoseDelay), SceneTreeTimer.SignalName.Timeout);
+			ending.RequestEnd(false);
+			// The ending fades to black first; this screen goes once it's covered.
+			await ToSignal(GetTree().CreateTimer(ending.FadeTime + 0.2f), SceneTreeTimer.SignalName.Timeout);
+			overlay.QueueFree();
+			return;
+		}
 		await ToSignal(GetTree().CreateTimer(DeathScreenTime), SceneTreeTimer.SignalName.Timeout);
 
 		// Back at the start platform.

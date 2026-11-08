@@ -37,6 +37,10 @@ public partial class CharacterModel : Node3D
 	// Something carried in the right hand (the other player's view of what this one has out): the forearm comes up to
 	// hold it, and it's kept upright in the hand, its "Grip" child (if any) at the palm.
 	public Node3D HeldItem { get; set; }
+	// The ending screens (gameplay/GameEnding.cs), 0 = off, 1 = full. Dance: arms take turns punching up while the
+	// other rests on the hip, the hips swing and the knees bounce. Shame: head hung, hands on the head, slumped.
+	public float Dance { get; set; }
+	public float Shame { get; set; }
 
 	private Skeleton3D _skeleton;
 	private Node3D _model;
@@ -217,10 +221,79 @@ public partial class CharacterModel : Node3D
 			RotateBone(_rightLowerArm, Vector3.Forward, Mathf.DegToRad(80f) * shield);
 		}
 
+		if (Dance > 0f)
+			PoseDance(Mathf.Clamp(Dance, 0f, 1f));
+		if (Shame > 0f)
+			PoseShame(Mathf.Clamp(Shame, 0f, 1f));
+
 		RotateBone(_head, Vector3.Right, -Mathf.DegToRad(HeadPitchDegrees));
 		float drift = Mathf.DegToRad(HeadDriftDegrees) * idle;
 		RotateBone(_head, Vector3.Up, drift * (Mathf.Sin(_idleTime * 0.31f) + 0.4f * Mathf.Sin(_idleTime * 0.83f + 2f)));
 		RotateBone(_head, Vector3.Right, drift * 0.4f * Mathf.Sin(_idleTime * 0.47f + 0.5f));
+	}
+
+	// One arm up with the elbow bent, the other hand on the hip, swapping every half beat; the hips swing out on each
+	// beat (the legs lean back the other way so the feet stay put) and the knees bounce.
+	private void PoseDance(float amount)
+	{
+		const float beat = 0.6f;
+		float t = _idleTime;
+		float swap = Mathf.Sin(t * Mathf.Pi / beat);
+		float leftUp = Mathf.SmoothStep(-0.35f, 0.65f, swap) * amount;
+		float rightUp = Mathf.SmoothStep(-0.35f, 0.65f, -swap) * amount;
+		float hip = Mathf.Sin(t * Mathf.Tau / beat) * amount;
+		float bounce = Mathf.Abs(Mathf.Sin(t * Mathf.Pi / beat * 2f)) * amount;
+
+		RotateBone(_hips, Vector3.Back, Mathf.DegToRad(9f) * hip);
+		RotateBone(_leftUpperLeg, Vector3.Back, -Mathf.DegToRad(9f) * hip);
+		RotateBone(_rightUpperLeg, Vector3.Back, -Mathf.DegToRad(9f) * hip);
+		RotateBone(_spine, Vector3.Back, -Mathf.DegToRad(7f) * hip);
+		RotateBone(_chest, Vector3.Back, -Mathf.DegToRad(4f) * hip);
+		RotateBone(_head, Vector3.Back, Mathf.DegToRad(6f) * hip);
+		// Knees give a little on each beat.
+		RotateBone(_leftUpperLeg, Vector3.Right, -Mathf.DegToRad(10f) * bounce);
+		RotateBone(_rightUpperLeg, Vector3.Right, -Mathf.DegToRad(10f) * bounce);
+		RotateBone(_leftLowerLeg, Vector3.Right, Mathf.DegToRad(20f) * bounce);
+		RotateBone(_rightLowerLeg, Vector3.Right, Mathf.DegToRad(20f) * bounce);
+		if (_model != null)
+			_model.Position = new Vector3(Mathf.DegToRad(9f) * hip * 0.25f, -0.035f * bounce, 0f);
+
+		DanceArm(_leftUpperArm, _leftLowerArm, 1f, leftUp, amount);
+		DanceArm(_rightUpperArm, _rightLowerArm, -1f, rightUp, amount);
+	}
+
+	// side: +1 left arm, -1 right arm. up: 0 = hand on the hip, 1 = raised high, elbow bent.
+	private void DanceArm(int upper, int lower, float side, float up, float amount)
+	{
+		float hipHand = amount - up;
+		// Hand on the hip: elbow out to the side and back, forearm folded in to the waist.
+		RotateBone(upper, Vector3.Back, side * Mathf.DegToRad(28f) * hipHand);
+		RotateBone(upper, Vector3.Right, Mathf.DegToRad(18f) * hipHand);
+		RotateBone(lower, Vector3.Back, -side * Mathf.DegToRad(95f) * hipHand);
+		// Raised: up past the shoulder, a little in front, the forearm bent back in over the head.
+		RotateBone(upper, Vector3.Back, side * Mathf.DegToRad(150f) * up);
+		RotateBone(upper, Vector3.Right, -Mathf.DegToRad(15f) * up);
+		RotateBone(lower, Vector3.Back, side * Mathf.DegToRad(45f) * up);
+	}
+
+	// Head hung forward, back slumped, both hands clasped on top of the head; now and then a slow shake of the head.
+	private void PoseShame(float amount)
+	{
+		float t = _idleTime;
+		RotateBone(_spine, Vector3.Right, Mathf.DegToRad(10f) * amount);
+		RotateBone(_chest, Vector3.Right, Mathf.DegToRad(10f) * amount);
+		RotateBone(_head, Vector3.Right, Mathf.DegToRad(32f) * amount);
+		RotateBone(_head, Vector3.Up, Mathf.DegToRad(9f) * Mathf.Sin(t * 1.4f) * Mathf.Max(0f, Mathf.Sin(t * 0.45f)) * amount);
+		ShameArm(_leftUpperArm, _leftLowerArm, 1f, amount);
+		ShameArm(_rightUpperArm, _rightLowerArm, -1f, amount);
+	}
+
+	private void ShameArm(int upper, int lower, float side, float amount)
+	{
+		// Elbows up and out to the sides, a little forward, forearms folded in so the hands meet on the crown.
+		RotateBone(upper, Vector3.Back, side * Mathf.DegToRad(118f) * amount);
+		RotateBone(upper, Vector3.Up, -side * Mathf.DegToRad(25f) * amount);
+		RotateBone(lower, Vector3.Back, side * Mathf.DegToRad(125f) * amount);
 	}
 
 	// Goes limp: physics takes over the body from its current pose, and the push (an impulse, in N·s) knocks it down.

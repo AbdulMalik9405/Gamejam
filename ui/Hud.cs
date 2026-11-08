@@ -10,7 +10,6 @@ public partial class Hud : CanvasLayer
 {
 	[Export] public Texture2D GrabIcon { get; set; }
 	[Export] public float SlotSize { get; set; } = 64f;
-	[Export] public double GameDurationSeconds { get; set; } = 300d;
 
 	// Basalt and sandstone-gold, like the tomb's painted bands.
 	private static readonly Color SlotBg = new Color(0.1f, 0.075f, 0.05f, 0.82f);
@@ -90,7 +89,7 @@ public partial class Hud : CanvasLayer
 
 	private void RefreshTimer()
 	{
-		double remaining = Mathf.Max(0d, GameDurationSeconds - GameState.Instance.ElapsedSeconds);
+		double remaining = Mathf.Max(0d, GameState.Instance.TimeLimitSeconds - GameState.Instance.ElapsedSeconds);
 		int totalSeconds = Mathf.CeilToInt((float)remaining);
 		_timer.Text = $"{totalSeconds / 60}:{totalSeconds % 60:00}";
 		_timer.AddThemeColorOverride("font_color", remaining <= 30d ? new Color(1f, 0.43f, 0.3f) : Gold);

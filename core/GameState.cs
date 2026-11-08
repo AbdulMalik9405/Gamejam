@@ -26,6 +26,8 @@ public partial class GameState : Node
 	// Testing: the game starts with just the local player (net/Session.cs `--solo`).
 	public bool Solo { get; set; }
 	public double ElapsedSeconds { get; private set; }
+	// The game is lost when ElapsedSeconds reaches this (gameplay/GameEnding.cs); the HUD counts down to it.
+	public double TimeLimitSeconds { get; set; } = 300d;
 
 	private readonly Dictionary<long, PlayerInfo> _players = new();
 	private readonly Dictionary<long, Node3D> _playerNodes = new();
