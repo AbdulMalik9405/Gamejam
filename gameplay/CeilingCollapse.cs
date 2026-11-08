@@ -10,8 +10,10 @@ namespace Gamejam.Gameplay;
 /// solved (the tile placed on the crypt's altar), both players watch the past room: the Egyptian walks in as the ground
 /// rumbles and dust trickles down, looks up, the ceiling above the spot that's open in the present breaks, and the
 /// rubble buries him (he goes limp, a ragdoll). Then it cuts to the same room, where he's laid in the royal coffin on
-/// the floor and its lid swings shut on him. The past player stays dead (a black screen), the present player gets
-/// their view back, and only then does this count as solved on their machine (for whatever comes next).
+/// the floor and its lid swings shut on him. Then to the present's crypt: the royal coffin there rattles and bursts
+/// open, and he comes out as the mummy and runs at the explorer (seen through the explorer's eyes). Then both players
+/// get their own views back, and only then does this count as solved on the present player's machine (for whatever
+/// comes next). Nobody dies.
 /// </summary>
 public partial class CeilingCollapse : Puzzle
 {
@@ -36,8 +38,12 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 CoffinPosition { get; set; } = new(-2.75f, 0f, 0f);
 	[Export] public float CoffinYawDegrees { get; set; }
 	[Export] public Vector3 CoffinCameraPosition { get; set; } = new(-1.1f, 1.45f, 0.55f);
-	[Export] public string DeathTitle { get; set; } = "CRUSHED";
-	[Export] public string DeathText { get; set; } = "The ceiling gave way and buried you.\nYour partner must escape alone.";
+	// The mummy standing in the present's royal coffin (a CharacterModel in the present map), which breaks out at the
+	// end, and that shot's camera and where it steps down onto the crypt floor, in the mummy's parent's space.
+	[Export] public CharacterModel Mummy { get; set; }
+	[Export] public Vector3 MummyCameraPosition { get; set; } = new(1.1f, 3.0f, 17.2f);
+	[Export] public Vector3 MummyCameraTarget { get; set; } = new(0f, 2.9f, 19.9f);
+	[Export] public Vector3 MummyExit { get; set; } = new(0f, 1.6f, 19.0f);
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;
@@ -58,6 +64,16 @@ public partial class CeilingCollapse : Puzzle
 	private const float LidTime = 1.3f;
 	private const float LidOpenDegrees = 105f;
 	private const float CoffinEnd = CoffinStart + LidDelay + LidTime + 1.5f;
+	// The mummy shot, from its cut: two rattles, the burst, stepping out, then the cut to the explorer's eyes for the
+	// run, which ends RunStopShort in front of them.
+	private const float MummyStart = CoffinEnd + FadeTime;
+	private const float RattleOne = 0.7f;
+	private const float RattleTwo = 1.4f;
+	private const float BurstTime = 2.1f;
+	private const float StepEnd = 2.9f;
+	private const float PovCut = 3.1f;
+	private const float RunSpeed = 3.3f;
+	private const float RunStopShort = 1.3f;
 	// The trough is the royal coffin's outline measured at this many points along its length.
 	private const int CoffinStations = 24;
 	private const float CoffinWall = 0.035f;
@@ -73,12 +89,9 @@ public partial class CeilingCollapse : Puzzle
 	private bool _solvedHere;
 	private float _time = -1f;
 	private Player _localPlayer;
-	private bool _localIsPast;
 	private CanvasLayer _hud;
 	private Camera3D _camera;
 	private ColorRect _fade;
-	private Label _deathTitle;
-	private Label _deathText;
 	private Node3D _victimPivot;
 	private CharacterModel _victim;
 	private Node3D _debris;
@@ -92,6 +105,15 @@ public partial class CeilingCollapse : Puzzle
 	private Node3D _coffin;
 	private Node3D _lidHinge;
 	private CpuParticles3D _slamDust;
+	private bool _inMummy, _coffinBroken, _atPov;
+	private float _mummyEnd = -1f;
+	private Node3D _crypt;
+	private Node3D _cryptDebris;
+	private Transform3D _coffinRest;
+	private Vector3 _mummyStart;
+	private readonly List<Vector3> _mummyPath = new();
+	private float _mummyPathLength;
+	private Camera3D _explorerCamera;
 	private readonly RandomNumberGenerator _rng = new();
 
 	public override void _Ready()
@@ -105,8 +127,8 @@ public partial class CeilingCollapse : Puzzle
 	{
 		if (Trigger != null && IsInstanceValid(Trigger))
 			Trigger.Solved -= OnTriggerSolved;
-		// Never leave the present player stuck if this goes away early.
-		if (_playing && !_cutBack && !_localIsPast && IsInstanceValid(_localPlayer))
+		// Never leave a player stuck if this goes away early.
+		if (_playing && !_cutBack && IsInstanceValid(_localPlayer))
 			_localPlayer.InputLocked = false;
 	}
 
@@ -125,8 +147,6 @@ public partial class CeilingCollapse : Puzzle
 		_playing = true;
 		_rng.Seed = 1234;
 		_localPlayer = GameState.Instance?.GetPlayerNode(Multiplayer.GetUniqueId()) as Player;
-		_localIsPast = GameState.Instance != null && GameState.Instance.LocalEra == Era.Past
-			&& GameState.Instance.Players.ContainsKey(Multiplayer.GetUniqueId());
 		if (_localPlayer != null)
 			_localPlayer.InputLocked = true;
 		_hud = GetTree().CurrentScene?.GetNodeOrNull<CanvasLayer>("Hud");
@@ -153,9 +173,13 @@ public partial class CeilingCollapse : Puzzle
 		}
 
 		// Each shot fades in after its cut and out at its end.
-		float fade = t < CoffinStart
-			? Mathf.Max(1f - Mathf.Clamp(t / FadeTime, 0f, 1f), Mathf.Clamp((t - ShotEnd) / FadeTime, 0f, 1f))
-			: Mathf.Max(1f - Mathf.Clamp((t - CoffinStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - CoffinEnd) / FadeTime, 0f, 1f));
+		float fade;
+		if (t < CoffinStart)
+			fade = Mathf.Max(1f - Mathf.Clamp(t / FadeTime, 0f, 1f), Mathf.Clamp((t - ShotEnd) / FadeTime, 0f, 1f));
+		else if (t < MummyStart)
+			fade = Mathf.Max(1f - Mathf.Clamp((t - CoffinStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - CoffinEnd) / FadeTime, 0f, 1f));
+		else
+			fade = Mathf.Max(1f - Mathf.Clamp((t - MummyStart) / FadeTime, 0f, 1f), _mummyEnd >= 0f ? Mathf.Clamp((t - _mummyEnd) / FadeTime, 0f, 1f) : 0f);
 		_fade.Color = new Color(0f, 0f, 0f, fade);
 
 		if (!_inCoffin)
@@ -166,24 +190,21 @@ public partial class CeilingCollapse : Puzzle
 		ReleaseRubble(t);
 		if (!_inCoffin && t >= CoffinStart)
 			CutToCoffin();
-		if (_inCoffin && !_cutBack)
+		if (_inCoffin && !_inMummy)
 			AnimateCoffin(t - CoffinStart);
+		if (!_inMummy && t >= MummyStart)
+			CutToMummy();
+		if (_inMummy && !_cutBack)
+			AnimateMummy(t, t - MummyStart, dt);
 
 		if (!_broke && t >= BreakTime)
 			Break();
 		if (!_fell && t >= FallTime)
 			Fall();
 
-		if (t >= CoffinEnd + FadeTime && !_cutBack)
+		if (!_cutBack && _mummyEnd >= 0f && t >= _mummyEnd + FadeTime)
 			CutBack();
-		if (_localIsPast && _cutBack)
-		{
-			// The past player is dead: their screen stays black with a few words.
-			float k = Mathf.Clamp((t - CoffinEnd - FadeTime - 0.3f) / 1.2f, 0f, 1f);
-			_deathTitle.Modulate = new Color(1f, 1f, 1f, k);
-			_deathText.Modulate = new Color(1f, 1f, 1f, Mathf.Clamp(k * 1.5f - 0.5f, 0f, 1f));
-		}
-		else if (_cutBack && t >= CoffinEnd + FadeTime * 2f)
+		if (_cutBack && t >= _mummyEnd + FadeTime * 2f)
 			Finish();
 	}
 
@@ -197,19 +218,6 @@ public partial class CeilingCollapse : Puzzle
 		_fade = new ColorRect { Color = Colors.Transparent, MouseFilter = Control.MouseFilterEnum.Ignore };
 		_fade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		overlay.AddChild(_fade);
-
-		var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center, MouseFilter = Control.MouseFilterEnum.Ignore };
-		box.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		box.AddThemeConstantOverride("separation", 18);
-		overlay.AddChild(box);
-		_deathTitle = new Label { Text = DeathTitle, HorizontalAlignment = HorizontalAlignment.Center, Modulate = Colors.Transparent };
-		_deathTitle.AddThemeFontSizeOverride("font_size", 64);
-		_deathTitle.AddThemeColorOverride("font_color", new Color(0.75f, 0.12f, 0.08f));
-		box.AddChild(_deathTitle);
-		_deathText = new Label { Text = DeathText, HorizontalAlignment = HorizontalAlignment.Center, Modulate = Colors.Transparent };
-		_deathText.AddThemeFontSizeOverride("font_size", 24);
-		_deathText.AddThemeColorOverride("font_color", new Color(0.85f, 0.8f, 0.7f));
-		box.AddChild(_deathText);
 	}
 
 	private void CutToPast()
@@ -233,8 +241,11 @@ public partial class CeilingCollapse : Puzzle
 		AnimateCamera(0f);
 	}
 
-	// The real past player's body is replaced by the cutscene's Egyptian, here and on the other machine.
-	private void HidePastPlayers()
+	// While the cutscene's Egyptian stands in for him, the real past player's body is hidden, here and on the other
+	// machine. He gets it back at the end.
+	private void HidePastPlayers() => SetPastPlayersShown(false);
+
+	private void SetPastPlayersShown(bool shown)
 	{
 		if (GameState.Instance == null)
 			return;
@@ -242,12 +253,21 @@ public partial class CeilingCollapse : Puzzle
 		{
 			if (entry.Value.Era != Era.Past || GameState.Instance.GetPlayerNode(entry.Key) is not Player player)
 				continue;
-			player.Visible = false;
-			player.Inventory?.SelectedItem?.SetDeferred(Node3D.PropertyName.Visible, false);
-			// Dead: no more moving, picking up or showing items.
-			if (player.IsMultiplayerAuthority())
-				player.ProcessMode = ProcessModeEnum.Disabled;
+			player.Visible = shown;
+			player.Inventory?.SelectedItem?.SetDeferred(Node3D.PropertyName.Visible, shown);
 		}
+	}
+
+	private Player PresentPlayer()
+	{
+		if (GameState.Instance == null)
+			return null;
+		foreach (KeyValuePair<long, PlayerInfo> entry in GameState.Instance.Players)
+		{
+			if (entry.Value.Era == Era.Present && GameState.Instance.GetPlayerNode(entry.Key) is Player player)
+				return player;
+		}
+		return null;
 	}
 
 	// Swaps the whole past ceiling for copies of the present's pieces, which leave the hole.
@@ -717,15 +737,235 @@ public partial class CeilingCollapse : Puzzle
 		_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
 	}
 
+	// The present's crypt: the royal coffin there rattles, bursts open, and the mummy steps out.
+	private void CutToMummy()
+	{
+		_inMummy = true;
+		_camera.HOffset = 0f;
+		_camera.VOffset = 0f;
+		_crypt = Mummy?.GetParent() as Node3D;
+		if (_crypt == null)
+		{
+			// Nothing to show: end here.
+			_mummyEnd = _time;
+			return;
+		}
+		_cryptDebris = new Node3D { Name = "CoffinDebris" };
+		_crypt.AddChild(_cryptDebris);
+		if (RoyalCoffin != null)
+			_coffinRest = RoyalCoffin.Transform;
+		_mummyStart = Mummy.Position;
+		_camera.GlobalPosition = _crypt.ToGlobal(MummyCameraPosition);
+		_camera.LookAt(_crypt.ToGlobal(MummyCameraTarget), Vector3.Up);
+		_explorerCamera = PresentPlayer()?.GetNodeOrNull<Camera3D>("Camera");
+	}
+
+	private void AnimateMummy(float t, float m, float dt)
+	{
+		if (_crypt == null)
+			return;
+		// Two rattles of the coffin, the second harder, then it bursts.
+		float before = m - dt;
+		float rattle = Pulse(m, RattleOne, 0.35f) * 1.5f + Pulse(m, RattleTwo, 0.45f) * 2.8f;
+		if (RoyalCoffin != null && !_coffinBroken)
+			RoyalCoffin.Transform = _coffinRest * new Transform3D(new Basis(Vector3.Back, Mathf.DegToRad(rattle * Mathf.Sin(m * 47f))), Vector3.Zero);
+		if ((before < RattleOne && m >= RattleOne) || (before < RattleTwo && m >= RattleTwo))
+			Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "coffin_rattle", Mummy.GlobalPosition);
+		if (!_coffinBroken && m >= BurstTime)
+			BurstCoffin();
+
+		// Out of the coffin and down off the dais with a small hop, arms coming up; then the run.
+		if (m >= BurstTime + 0.2f && m < PovCut)
+		{
+			float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp((m - BurstTime - 0.2f) / (StepEnd - BurstTime - 0.2f), 0f, 1f));
+			Vector3 at = _mummyStart.Lerp(MummyExit, k);
+			at.Y += Mathf.Sin(k * Mathf.Pi) * 0.1f;
+			Mummy.Position = at;
+		}
+		if (m >= BurstTime)
+			Mummy.Reach = Mathf.Clamp((m - BurstTime) / 0.6f, 0f, 1f);
+		if (!_atPov && m >= PovCut)
+			CutToExplorer();
+		if (_atPov)
+			Run(t, m - PovCut, dt);
+		else
+		{
+			float shake = Pulse(m, RattleOne, 0.35f) * 0.008f + Pulse(m, RattleTwo, 0.45f) * 0.015f
+				+ (m >= BurstTime ? Mathf.Lerp(0.05f, 0f, Mathf.Clamp((m - BurstTime) / 0.9f, 0f, 1f)) : 0f);
+			_camera.HOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+			_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+		}
+	}
+
+	// 0 outside [start, start + length], rising and falling smoothly inside it.
+	private static float Pulse(float t, float start, float length) =>
+		t < start || t > start + length ? 0f : Mathf.Sin((t - start) / length * Mathf.Pi);
+
+	// The front of the coffin is flung off, splinters fly, and what's left is a dark, empty shell.
+	private void BurstCoffin()
+	{
+		_coffinBroken = true;
+		Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, "coffin_burst", Mummy.GlobalPosition);
+		Mummy.Animate = true;
+		Mummy.WalkSpeed = 3f;
+		Mummy.StrideLength = 1.5f;
+		Mummy.LegSwingDegrees = 38f;
+		if (RoyalCoffin?.Mesh == null)
+			return;
+		RoyalCoffin.Transform = _coffinRest;
+		RoyalCoffin.Visible = false;
+		// The mummy, the lid and the splinters all pass where the coffin's collider was.
+		foreach (Node child in RoyalCoffin.GetChildren())
+		{
+			if (child is CollisionObject3D body)
+				body.CollisionLayer = 0;
+		}
+
+		Aabb box = RoyalCoffin.GetAabb();
+		float back = box.End.Z;
+		float front = box.Position.Z;
+		Vector3 centre = box.GetCenter();
+		Transform3D rest = RoyalCoffin.Transform;
+		// The back half stays: the coffin squashed towards its back, with a dark hollow where its front was.
+		MeshInstance3D shell = CopyCoffin("Shell");
+		shell.Transform = rest * Scaled(new Vector3(0f, 0f, back), new Vector3(1f, 1f, 0.45f));
+		_crypt.AddChild(shell);
+		float shellFront = back - (back - front) * 0.45f;
+		var hollow = new MeshInstance3D
+		{
+			Name = "Hollow",
+			Mesh = RoyalCoffin.Mesh,
+			MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.03f, 0.02f, 0.015f), Roughness = 1f },
+			Transform = rest * new Transform3D(Basis.Identity, new Vector3(centre.X, centre.Y, shellFront - 0.004f))
+				* new Transform3D(Basis.FromScale(new Vector3(0.8f, 0.88f, 0.02f)), Vector3.Zero)
+				* new Transform3D(Basis.Identity, -centre),
+		};
+		_crypt.AddChild(hollow);
+
+		// The front, flung forward and toppling onto the floor.
+		var lid = new RigidBody3D { Name = "BrokenLid", Mass = 40f, CollisionLayer = Layers.World, CollisionMask = Layers.World };
+		MeshInstance3D lidMesh = CopyCoffin("Mesh");
+		lidMesh.Transform = Scaled(new Vector3(0f, 0f, front), new Vector3(1f, 1f, 0.5f));
+		lid.AddChild(lidMesh);
+		lid.AddChild(new CollisionShape3D
+		{
+			Shape = new BoxShape3D { Size = new Vector3(box.Size.X * 0.85f, box.Size.Y * 0.95f, 0.16f) },
+			Position = new Vector3(centre.X, centre.Y, front + 0.1f),
+		});
+		_cryptDebris.AddChild(lid);
+		lid.Transform = rest;
+		Vector3 forward = -lid.GlobalBasis.Z.Normalized();
+		lid.LinearVelocity = forward * 2.6f + Vector3.Up * 1.2f;
+		lid.AngularVelocity = lid.GlobalBasis.X.Normalized() * -2.2f + new Vector3(0f, _rng.RandfRange(-0.6f, 0.6f), 0f);
+
+		// Splinters of wood and gold.
+		Material wood = RoyalCoffin.GetActiveMaterial(0);
+		Material gold = RoyalCoffin.Mesh.GetSurfaceCount() > 1 ? RoyalCoffin.GetActiveMaterial(1) : wood;
+		for (int i = 0; i < 12; i++)
+		{
+			float size = _rng.RandfRange(0.05f, 0.13f);
+			var shardSize = new Vector3(size, size * _rng.RandfRange(0.3f, 0.8f), size * _rng.RandfRange(0.15f, 0.4f));
+			var shard = new RigidBody3D { Mass = 2f, CollisionLayer = Layers.World, CollisionMask = Layers.World };
+			shard.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = shardSize } });
+			shard.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = shardSize, Material = i % 3 == 0 ? gold : wood } });
+			_cryptDebris.AddChild(shard);
+			shard.Transform = rest * new Transform3D(Basis.Identity,
+				new Vector3(_rng.RandfRange(box.Position.X * 0.7f, box.End.X * 0.7f), _rng.RandfRange(box.Position.Y + 0.4f, box.End.Y - 0.3f), front));
+			shard.LinearVelocity = forward * _rng.RandfRange(2f, 4.5f) + new Vector3(_rng.RandfRange(-1.5f, 1.5f), _rng.RandfRange(0.5f, 2.5f), _rng.RandfRange(-1.5f, 1.5f));
+			shard.AngularVelocity = new Vector3(_rng.RandfRange(-8f, 8f), _rng.RandfRange(-8f, 8f), _rng.RandfRange(-8f, 8f));
+		}
+
+		var dust = (CpuParticles3D)_burst.Duplicate();
+		dust.EmissionShape = CpuParticles3D.EmissionShapeEnum.Box;
+		dust.EmissionBoxExtents = new Vector3(box.Size.X * 0.4f, box.Size.Y * 0.4f, 0.05f);
+		dust.Direction = forward;
+		dust.Spread = 45f;
+		_cryptDebris.AddChild(dust);
+		dust.GlobalPosition = RoyalCoffin.ToGlobal(new Vector3(centre.X, centre.Y, front));
+		dust.Emitting = true;
+	}
+
+	private MeshInstance3D CopyCoffin(string name)
+	{
+		var copy = new MeshInstance3D { Name = name, Mesh = RoyalCoffin.Mesh };
+		for (int i = 0; i < RoyalCoffin.Mesh.GetSurfaceCount(); i++)
+			copy.SetSurfaceOverrideMaterial(i, RoyalCoffin.GetActiveMaterial(i));
+		return copy;
+	}
+
+	// Scales by scale about the point pivot.
+	private static Transform3D Scaled(Vector3 pivot, Vector3 scale) =>
+		new Transform3D(Basis.Identity, pivot) * new Transform3D(Basis.FromScale(scale), Vector3.Zero) * new Transform3D(Basis.Identity, -pivot);
+
+	// Through the explorer's eyes: the mummy runs at them. Its route goes round the altar if that's in the way, and
+	// stops a little short of them.
+	private void CutToExplorer()
+	{
+		_atPov = true;
+		_camera.HOffset = 0f;
+		_camera.VOffset = 0f;
+		Vector3 target = _explorerCamera != null ? _crypt.ToLocal(_explorerCamera.GlobalPosition) : MummyCameraPosition;
+		if (_explorerCamera != null)
+			_camera.GlobalTransform = _explorerCamera.GlobalTransform;
+		target.Y = MummyExit.Y;
+
+		_mummyPath.Clear();
+		_mummyPath.Add(Mummy.Position with { Y = MummyExit.Y });
+		// The altar (in the crypt's middle) stands between the coffin and anyone in front of it: go round its side.
+		if (target.Z < MummyExit.Z - 2f && Mathf.Abs(target.X) < 1.6f)
+			_mummyPath.Add(new Vector3(target.X >= 0f ? 0.98f : -0.98f, MummyExit.Y, 16.7f));
+		Vector3 last = _mummyPath[^1];
+		Vector3 toward = target - last;
+		float reach = Mathf.Max(0.2f, toward.Length() - RunStopShort);
+		_mummyPath.Add(last + toward.Normalized() * reach);
+		_mummyPathLength = 0f;
+		for (int i = 1; i < _mummyPath.Count; i++)
+			_mummyPathLength += _mummyPath[i - 1].DistanceTo(_mummyPath[i]);
+	}
+
+	private void Run(float t, float r, float dt)
+	{
+		// Picks up speed over the first moment, then a steady run.
+		const float pickUp = 0.25f;
+		float distance = RunSpeed * (r - pickUp * (1f - Mathf.Exp(-r / pickUp)));
+		Vector3 at = _mummyPath[^1];
+		Vector3 heading = _mummyPath[^1] - _mummyPath[^2];
+		float left = distance;
+		for (int i = 1; i < _mummyPath.Count; i++)
+		{
+			float segment = _mummyPath[i - 1].DistanceTo(_mummyPath[i]);
+			if (left <= segment)
+			{
+				at = _mummyPath[i - 1].Lerp(_mummyPath[i], left / Mathf.Max(segment, 0.001f));
+				heading = _mummyPath[i] - _mummyPath[i - 1];
+				break;
+			}
+			left -= segment;
+		}
+		Mummy.Position = at;
+		heading.Y = 0f;
+		if (heading.LengthSquared() > 0.0001f)
+		{
+			float yaw = Mathf.Atan2(-heading.X, -heading.Z);
+			Mummy.Rotation = new Vector3(0f, Mathf.LerpAngle(Mummy.Rotation.Y, yaw, 1f - Mathf.Exp(-12f * dt)), 0f);
+		}
+		if (_mummyEnd < 0f && distance >= _mummyPathLength)
+			_mummyEnd = t + 0.35f;
+
+		// The explorer's eyes follow it in, with a jolt as it closes.
+		Vector3 head = Mummy.GlobalPosition + Vector3.Up * 1.45f;
+		Basis look = Basis.LookingAt(head - _camera.GlobalPosition, Vector3.Up);
+		_camera.GlobalBasis = _camera.GlobalBasis.Slerp(look, 1f - Mathf.Exp(-7f * dt));
+		float near = 1f - Mathf.Clamp((Mummy.GlobalPosition.DistanceTo(_camera.GlobalPosition) - RunStopShort) / 3f, 0f, 1f);
+		float shake = 0.006f + 0.02f * near * near;
+		_camera.HOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+		_camera.VOffset = (_rng.Randf() - 0.5f) * 2f * shake;
+	}
+
 	private void CutBack()
 	{
 		_cutBack = true;
-		if (_localIsPast)
-		{
-			// Dead. The black screen and the words stay.
-			_fade.Color = Colors.Black;
-			return;
-		}
+		SetPastPlayersShown(true);
 		_camera.HOffset = 0f;
 		_camera.VOffset = 0f;
 		Camera3D playerCamera = _localPlayer?.GetNodeOrNull<Camera3D>("Camera");
@@ -742,9 +982,14 @@ public partial class CeilingCollapse : Puzzle
 		_fade.Color = Colors.Transparent;
 		if (IsInstanceValid(_localPlayer))
 			_localPlayer.InputLocked = false;
-		// The stones stay where they fell, but stop being simulated.
+		// The stones and splinters stay where they fell, but stop being simulated.
 		foreach (Node node in _debris.FindChildren("*", "RigidBody3D", true, false))
 			((RigidBody3D)node).Freeze = true;
+		if (_cryptDebris != null)
+		{
+			foreach (Node node in _cryptDebris.FindChildren("*", "RigidBody3D", true, false))
+				((RigidBody3D)node).Freeze = true;
+		}
 		if (_solvedHere)
 		{
 			IsSolved = true;

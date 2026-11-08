@@ -32,6 +32,8 @@ public partial class CharacterModel : Node3D
 	public float HeadPitchDegrees { get; set; }
 	// Raises both arms in front of the face (0 = at the sides, 1 = shielding the head). Used by cutscenes.
 	public float Shield { get; set; }
+	// Holds both arms straight out in front (0 = at the sides, 1 = level), like a mummy. Used by cutscenes.
+	public float Reach { get; set; }
 
 	private Skeleton3D _skeleton;
 	private Node3D _model;
@@ -143,7 +145,9 @@ public partial class CharacterModel : Node3D
 		RotateBone(_rightLowerLeg, Vector3.Right, -Mathf.DegToRad(30f) * Mathf.Max(0f, swing));
 
 		float down = Mathf.DegToRad(ArmDownDegrees);
-		float armSwing = Mathf.DegToRad(ArmSwingDegrees) * swing;
+		float reach = Mathf.SmoothStep(0f, 1f, Reach);
+		// Reaching arms stay level instead of swinging.
+		float armSwing = Mathf.DegToRad(ArmSwingDegrees) * swing * (1f - reach);
 		float shield = Mathf.SmoothStep(0f, 1f, Shield);
 		// Arms hang at the sides and swing opposite to the legs.
 		RotateBone(_leftUpperArm, Vector3.Back, -down);
@@ -153,6 +157,11 @@ public partial class CharacterModel : Node3D
 		float elbow = Mathf.DegToRad(ElbowBendDegrees);
 		RotateBone(_leftLowerArm, Vector3.Right, -elbow);
 		RotateBone(_rightLowerArm, Vector3.Right, -elbow);
+		if (reach > 0f)
+		{
+			RotateBone(_leftUpperArm, Vector3.Right, -Mathf.DegToRad(85f) * reach);
+			RotateBone(_rightUpperArm, Vector3.Right, -Mathf.DegToRad(85f) * reach);
+		}
 		// Shielding the head: from hanging at the sides the arms swing up in front (about the shoulder's side axis) and
 		// a little in, and the forearms fold in across above the face.
 		if (shield > 0f)
