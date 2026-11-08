@@ -24,6 +24,7 @@
 [ext_resource type="Script" path="res://gameplay/MirrorMesh.cs" id="26_mirrormesh"]
 [ext_resource type="Script" path="res://gameplay/WallOpening.cs" id="27_wallopening"]
 [ext_resource type="Script" path="res://gameplay/RoundPillar.cs" id="32_roundpillar"]
+[ext_resource type="Script" path="res://gameplay/BoulderRun.cs" id="33_boulderrun"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 [ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
@@ -426,6 +427,69 @@ layers = 3
 
 [node name="Ruin_Exit_Pylon_S" parent="level1old" index="72"]
 layers = 3
+
+[node name="Ruin_Exit_Cove1_Back" parent="level1old" index="70"]
+transform = Transform3D(0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, -20.6000003814697, 4.21666622161865, 18.306001663208)
+
+[node name="Ruin_Exit_Cove1_EndDown" parent="level1old" index="71"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -19.4939975738525, 3.53333330154419, 17.7560005187988)
+
+[node name="Ruin_Exit_Cove1_EndUp" parent="level1old" index="72"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -21.7059993743896, 5.0, 17.7560005187988)
+
+[node name="Ruin_Exit_Cove1_Floor" parent="level1old" index="73"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -20.6000003814697, 2.76666665077209, 17.5559997558594)
+
+[node name="Ruin_Exit_Cove1_Roof" parent="level1old" index="74"]
+transform = Transform3D(0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, -20.6000003814697, 5.77066707611084, 17.7560005187988)
+
+[node name="Ruin_Exit_Cove2_Back" parent="level1old" index="75"]
+transform = Transform3D(0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, -22.9999980926514, 5.81666707992554, 14.293999671936)
+
+[node name="Ruin_Exit_Cove2_EndDown" parent="level1old" index="76"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -21.8940010070801, 5.13333320617676, 14.8439998626709)
+
+[node name="Ruin_Exit_Cove2_EndUp" parent="level1old" index="77"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -24.1060009002686, 6.61680030822754, 14.8439998626709)
+
+[node name="Ruin_Exit_Cove2_Floor" parent="level1old" index="78"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -22.9999980926514, 4.36666679382324, 15.0440006256104)
+
+[node name="Ruin_Exit_Cove2_Roof" parent="level1old" index="79"]
+transform = Transform3D(0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, -22.9999980926514, 7.37066698074341, 14.8439998626709)
+
+[node name="Ruin_Exit_Cove3_Back" parent="level1old" index="80"]
+transform = Transform3D(0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, 0.0, 0.0, 0.0, 0.99599999189377, -25.6000003814697, 7.55000019073486, 18.306001663208)
+
+[node name="Ruin_Exit_Cove3_EndDown" parent="level1old" index="81"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -24.4939975738525, 6.83280038833618, 17.7560005187988)
+
+[node name="Ruin_Exit_Cove3_EndUp" parent="level1old" index="82"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -26.705997467041, 7.56613397598267, 17.7560005187988)
+
+[node name="Ruin_Exit_Cove3_Floor" parent="level1old" index="83"]
+transform = Transform3D(0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, 0.0, 0.0, 0.0, 0.99199998378754, -25.6000003814697, 6.10000038146973, 17.5559997558594)
+
+[node name="Ruin_Exit_Cove3_Roof" parent="level1old" index="84"]
+transform = Transform3D(0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, 0.0, 0.0, 0.0, 0.98900002241135, -25.6000003814697, 9.10400009155273, 17.7560005187988)
+
+[node name="Ruin_Exit_DoorStep" parent="level1old" index="85"]
+transform = Transform3D(0.99000000953674, 0.0, 0.0, 0.0, 0.99000000953674, 0.0, 0.0, 0.0, 0.99000000953674, -18.2000007629395, 1.30000007152557, 16.2999992370605)
+
+[node name="Ruin_Exit_SlopeWall_N1" parent="level1old" index="92"]
+transform = Transform3D(0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, -20.25, 4.03333330154419, 15.3969993591309)
+
+[node name="Ruin_Exit_SlopeWall_N2" parent="level1old" index="93"]
+transform = Transform3D(0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, -25.9500007629395, 7.38198375701904, 15.3969993591309)
+
+[node name="Ruin_Exit_SlopeWall_S1" parent="level1old" index="94"]
+transform = Transform3D(0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, -19.0499992370605, 3.23333334922791, 17.2030010223389)
+
+[node name="Ruin_Exit_SlopeWall_S2" parent="level1old" index="95"]
+transform = Transform3D(0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, -23.0999984741211, 5.88318395614624, 17.2030010223389)
+
+[node name="Ruin_Exit_SlopeWall_S3" parent="level1old" index="96"]
+transform = Transform3D(0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, 0.0, 0.0, 0.0, 0.99699997901917, -27.25, 7.89970064163208, 17.2030010223389)
 
 [node name="SpawnPast" type="Marker3D" parent="." unique_id=1404518722 groups=["spawn_points"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0.2, 12.864056)
@@ -1065,3 +1129,7 @@ Level = NodePath("../level1old")
 [node name="RoundPillars" type="Node" parent="." node_paths=PackedStringArray("Sources")]
 script = ExtResource("32_roundpillar")
 Sources = [NodePath("../level1/Pillar_1"), NodePath("../level1/Pillar_2"), NodePath("../level1/Pillar_3"), NodePath("../level1/Pillar_4"), NodePath("../level1old/Ruin_Pillar_1"), NodePath("../level1old/Ruin_Pillar_2"), NodePath("../level1old/Ruin_Pillar_3"), NodePath("../level1old/Ruin_Pillar_4_Stump"), NodePath("../level1old/Ruin_Pillar_4_Top"), NodePath("../level1old/Ruin_Pillar_4_FallenA"), NodePath("../level1old/Ruin_Pillar_4_FallenB")]
+
+[node name="BoulderRun" type="Node" parent="." node_paths=PackedStringArray("Level")]
+script = ExtResource("33_boulderrun")
+Level = NodePath("../level1old")
