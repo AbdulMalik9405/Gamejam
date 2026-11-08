@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Gamejam.Core;
 using Godot;
 
@@ -15,9 +16,14 @@ public partial class RevealCinematic : Node
 	private const float GlowOut = 0.6f;
 	private const float RumbleShake = 0.025f;
 	private const float RiseShake = 0.012f;
-	private const float GlowLightEnergy = 0.18f;
-	private const float GlowStrength = 0.3f;
-	private const float GlowLightRange = 1.2f;
+	private const float GlowLightEnergy = 0.22f;
+	private const float GlowEmission = 0.6f;
+	// The light hangs a little above and in front of the reward and falls off gently, so it washes evenly over
+	// the reward and what's around it instead of making a hot spot right under it.
+	private const float GlowLightRange = 2.4f;
+	private const float GlowLightAttenuation = 0.5f;
+	private const float GlowLightLift = 0.3f;
+	private const float GlowLightOut = 0.3f;
 
 	private Player _player;
 	private Camera3D _playerCamera;
@@ -32,9 +38,10 @@ public partial class RevealCinematic : Node
 	private Vector3 _shotFrom;
 	private Vector3 _shotTo;
 	private ColorRect _fade;
-	private StandardMaterial3D _glowMaterial;
+	// Glowing copies of the reward's materials, swapped in for the cutscene, and what they replaced.
+	private readonly List<BaseMaterial3D> _glowMaterials = new();
+	private readonly List<(MeshInstance3D Mesh, int Surface, Material Previous)> _swapped = new();
 	private OmniLight3D _light;
-	private Godot.Collections.Array<Node> _meshes;
 	private float _time;
 	private bool _cutToShot;
 	private bool _cutBack;
@@ -108,7 +115,8 @@ public partial class RevealCinematic : Node
 		float glow = Mathf.Clamp((t - glowStart) / GlowIn, 0f, 1f)
 			* (1f - Mathf.Clamp((t - glowStart - GlowIn - GlowHold) / GlowOut, 0f, 1f));
 		glow = Mathf.SmoothStep(0f, 1f, glow);
-		_glowMaterial.AlbedoColor = _glowColor with { A = GlowStrength * glow };
+		foreach (BaseMaterial3D material in _glowMaterials)
+			material.EmissionEnergyMultiplier = GlowEmission * glow;
 		// The light builds slowly from the moment the reward starts coming out (e.g. as a wall opening opens),
 		// so it seems to spill out with it, then fades with the glow.
 		float lightIn = Mathf.Clamp((t - shotStart) / (glowStart + GlowIn - shotStart), 0f, 1f);
@@ -153,19 +161,37 @@ public partial class RevealCinematic : Node
 		_shot = new Camera3D { Name = "Shot", Fov = 60f };
 		AddChild(_shot);
 
-		// A gold sheen laid over the reward's own materials, and a warm light so it lights up its corner.
-		_glowMaterial = new StandardMaterial3D
+		// The reward's own materials glow gold (an emissive copy of each, swapped in until the end), so every part of
+		// it lights up evenly. A sheen laid over it only covered parts: it fights the surface for depth.
+		if (_glowColor.Luminance > 0.01f)
 		{
-			ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-			Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-			BlendMode = BaseMaterial3D.BlendModeEnum.Add,
-			AlbedoColor = Colors.Transparent,
+			foreach (Node node in _target.FindChildren("*", "MeshInstance3D", true, false))
+			{
+				var mesh = (MeshInstance3D)node;
+				for (int i = 0; i < mesh.GetSurfaceOverrideMaterialCount(); i++)
+				{
+					if (mesh.GetActiveMaterial(i) is not BaseMaterial3D source)
+						continue;
+					var glowing = (BaseMaterial3D)source.Duplicate();
+					glowing.EmissionEnabled = true;
+					glowing.Emission = _glowColor;
+					glowing.EmissionEnergyMultiplier = 0f;
+					_swapped.Add((mesh, i, mesh.GetSurfaceOverrideMaterial(i)));
+					mesh.SetSurfaceOverrideMaterial(i, glowing);
+					_glowMaterials.Add(glowing);
+				}
+			}
+		}
+		_light = new OmniLight3D
+		{
+			LightColor = _glowColor,
+			LightEnergy = 0f,
+			OmniRange = GlowLightRange,
+			OmniAttenuation = GlowLightAttenuation,
+			ShadowEnabled = false,
 		};
-		_meshes = _target.FindChildren("*", "MeshInstance3D", true, false);
-		foreach (Node mesh in _meshes)
-			((MeshInstance3D)mesh).MaterialOverlay = _glowMaterial;
-		_light = new OmniLight3D { LightColor = _glowColor, LightEnergy = 0f, OmniRange = GlowLightRange, ShadowEnabled = false };
-		_target.AddChild(_light);
+		AddChild(_light);
+		_light.GlobalPosition = _focus + Vector3.Up * GlowLightLift + side * GlowLightOut;
 	}
 
 	private void CutToShot()
@@ -196,10 +222,10 @@ public partial class RevealCinematic : Node
 
 	private void Finish()
 	{
-		foreach (Node mesh in _meshes)
+		foreach ((MeshInstance3D mesh, int surface, Material previous) in _swapped)
 		{
 			if (IsInstanceValid(mesh))
-				((MeshInstance3D)mesh).MaterialOverlay = null;
+				mesh.SetSurfaceOverrideMaterial(surface, previous);
 		}
 		if (IsInstanceValid(_light))
 			_light.QueueFree();
