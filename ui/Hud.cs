@@ -10,6 +10,7 @@ public partial class Hud : CanvasLayer
 {
 	[Export] public Texture2D GrabIcon { get; set; }
 	[Export] public float SlotSize { get; set; } = 64f;
+	[Export] public double GameDurationSeconds { get; set; } = 300d;
 
 	// Basalt and sandstone-gold, like the tomb's painted bands.
 	private static readonly Color SlotBg = new Color(0.1f, 0.075f, 0.05f, 0.82f);
@@ -26,6 +27,8 @@ public partial class Hud : CanvasLayer
 	private Label _prompt;
 	private Label _selectedName;
 	private Label _message;
+	private Label _timer;
+	private PanelContainer _timerPanel;
 	private Tween _messageTween;
 	private Control _hotbar;
 	private readonly PanelContainer[] _slots = new PanelContainer[Inventory.SlotCount];
@@ -42,8 +45,14 @@ public partial class Hud : CanvasLayer
 		BuildCrosshair();
 		BuildHotbar();
 		BuildMessage();
+		BuildTimer();
 		if (Events.Instance != null)
 			Events.Instance.ShowMessage += OnShowMessage;
+		if (GameState.Instance != null)
+		{
+			GameState.Instance.GameStarted += OnGameStarted;
+			GameState.Instance.Escaped += OnGameEnded;
+		}
 	}
 
 	public override void _Process(double delta)
@@ -51,6 +60,9 @@ public partial class Hud : CanvasLayer
 		// Players may be spawned after the HUD, so keep looking until the local one shows up.
 		if (_player == null || !IsInstanceValid(_player))
 			FindLocalPlayer();
+		if (GameState.Instance != null && GameState.Instance.IsRunning)
+			RefreshTimer();
+		// Removed TorchPuzzle related code
 	}
 
 	public override void _ExitTree()
@@ -58,6 +70,30 @@ public partial class Hud : CanvasLayer
 		Unbind();
 		if (Events.Instance != null)
 			Events.Instance.ShowMessage -= OnShowMessage;
+		if (GameState.Instance != null)
+		{
+			GameState.Instance.GameStarted -= OnGameStarted;
+			GameState.Instance.Escaped -= OnGameEnded;
+		}
+	}
+
+	private void OnGameStarted()
+	{
+		_timerPanel.Visible = true;
+		RefreshTimer();
+	}
+
+	private void OnGameEnded(double elapsedSeconds)
+	{
+		_timerPanel.Visible = false;
+	}
+
+	private void RefreshTimer()
+	{
+		double remaining = Mathf.Max(0d, GameDurationSeconds - GameState.Instance.ElapsedSeconds);
+		int totalSeconds = Mathf.CeilToInt((float)remaining);
+		_timer.Text = $"{totalSeconds / 60}:{totalSeconds % 60:00}";
+		_timer.AddThemeColorOverride("font_color", remaining <= 30d ? new Color(1f, 0.43f, 0.3f) : Gold);
 	}
 
 	// Events.ShowMessage: fades in, stays for duration seconds, fades out. A new message replaces the old one.
@@ -87,6 +123,63 @@ public partial class Hud : CanvasLayer
 		_message.AddThemeColorOverride("font_color", Cream);
 		_message.AddThemeConstantOverride("outline_size", 8);
 		AddChild(_message);
+	}
+
+	private void BuildTimer()
+	{
+		_timerPanel = new PanelContainer
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Visible = GameState.Instance != null && GameState.Instance.IsRunning,
+		};
+		_timerPanel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+		_timerPanel.OffsetLeft = 24f;
+		_timerPanel.OffsetTop = 24f;
+
+		var frame = new StyleBoxFlat
+		{
+			BgColor = new Color(0.055f, 0.04f, 0.025f, 0.9f),
+			BorderColor = SlotBorder,
+			ShadowColor = new Color(0f, 0f, 0f, 0.45f),
+			ShadowSize = 8,
+		};
+		frame.SetBorderWidthAll(2);
+		frame.SetCornerRadiusAll(5);
+		frame.ContentMarginLeft = 15;
+		frame.ContentMarginRight = 15;
+		frame.ContentMarginTop = 8;
+		frame.ContentMarginBottom = 9;
+		_timerPanel.AddThemeStyleboxOverride("panel", frame);
+		AddChild(_timerPanel);
+
+		var content = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		content.AddThemeConstantOverride("separation", 0);
+		_timerPanel.AddChild(content);
+
+		var title = new Label
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Text = "TIME REMAINING",
+			HorizontalAlignment = HorizontalAlignment.Center,
+		};
+		title.AddThemeFontOverride("font", _serif);
+		title.AddThemeFontSizeOverride("font_size", 11);
+		title.AddThemeColorOverride("font_color", Cream);
+		content.AddChild(title);
+
+		_timer = new Label
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Text = "5:00",
+			HorizontalAlignment = HorizontalAlignment.Center,
+		};
+		_timer.AddThemeFontOverride("font", _serif);
+		_timer.AddThemeFontSizeOverride("font_size", 30);
+		_timer.AddThemeColorOverride("font_color", Gold);
+		AddOutline(_timer, 30);
+		content.AddChild(_timer);
+
+		// Removed TorchPuzzle related UI elements
 	}
 
 	private void FindLocalPlayer()
