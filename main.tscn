@@ -20,7 +20,9 @@
 [ext_resource type="Texture2D" path="res://placeholders/ui_pyramid_yellow.svg" id="18_icon_yellow"]
 [ext_resource type="Script" path="res://gameplay/KeyholeLock.cs" id="22_keyholelock"]
 [ext_resource type="Script" path="res://gameplay/MoveOnSolved.cs" id="23_moveonsolved"]
-[ext_resource type="PackedScene" path="res://gameplay/Tile.tscn" id="24_tile"]
+[ext_resource type="Script" path="res://gameplay/ArtPickup.cs" id="25_artpickup"]
+[ext_resource type="Script" path="res://gameplay/MirrorMesh.cs" id="26_mirrormesh"]
+[ext_resource type="Script" path="res://gameplay/WallOpening.cs" id="27_wallopening"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
 
@@ -192,6 +194,30 @@ omni_attenuation = 1.5
 light_energy = 0.75
 omni_range = 10.0
 omni_attenuation = 1.5
+
+[node name="PyramidDisplay_Blue" parent="level1" index="55"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.09)
+
+[node name="PyramidDisplay_Brown" parent="level1" index="56"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, -0.27)
+
+[node name="PyramidDisplay_Green" parent="level1" index="57"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.27)
+
+[node name="PyramidDisplay_Orange" parent="level1" index="58"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.15, 0.09)
+
+[node name="PyramidDisplay_Pink" parent="level1" index="59"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.55, 0.0)
+
+[node name="PyramidDisplay_Purple" parent="level1" index="60"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, -0.18)
+
+[node name="PyramidDisplay_Red" parent="level1" index="61"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.0)
+
+[node name="PyramidDisplay_Yellow" parent="level1" index="62"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.525, 1.35, 0.18)
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1117330608]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8482847, 2.1142697, 8.543005)
@@ -546,14 +572,21 @@ Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
 DoneMessage = "Take the tile from the coffin in the main room and place it on the table in the new room."
 
-[node name="Tile" parent="." instance=ExtResource("24_tile")]
-transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 195.87, 0.466, 9.46)
+[node name="Tile" type="RigidBody3D" parent="." node_paths=PackedStringArray("Source")]
+collision_layer = 4
+collision_mask = 1
+freeze = true
+script = ExtResource("25_artpickup")
+Source = NodePath("../level1old/Ruin_Sarcophagus_Lid/Ruin_Sarcophagus_Seal")
+GripPosition = Vector3(0, 0, 0.18)
+ItemName = "Tile"
+CreateSlotAtStart = false
 
 [node name="TileSlot" type="Area3D" parent="."]
-transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 196.27, 2.497, 25.564)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.497, 25.564)
 script = ExtResource("10_pickupslot")
 Id = "altar_tile"
-Size = Vector3(0.03, 0.23, 0.23)
+Size = Vector3(0.44, 0.03, 0.44)
 Accepts = "Tile"
 
 [node name="TilePuzzle" type="Node" parent="." node_paths=PackedStringArray("Slots", "Answer")]
@@ -614,3 +647,48 @@ environment = SubResource("Environment_tomb")
 
 [editable path="level1"]
 [editable path="level1old"]
+
+[node name="PastPyramidShelves" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.73, 0, 8.864056)
+
+[node name="Shelf1" type="MeshInstance3D" parent="PastPyramidShelves"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.135, 0)
+mesh = SubResource("BoxMesh_shelf1")
+surface_material_override/0 = SubResource("Mat_shelf")
+
+[node name="Shelf2" type="MeshInstance3D" parent="PastPyramidShelves"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.335, 0)
+mesh = SubResource("BoxMesh_shelf2")
+surface_material_override/0 = SubResource("Mat_shelf")
+
+[node name="Shelf3" type="MeshInstance3D" parent="PastPyramidShelves"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.52, 1.535, 0)
+mesh = SubResource("BoxMesh_shelf3")
+surface_material_override/0 = SubResource("Mat_shelf")
+
+[node name="PastKeyhole1" type="MeshInstance3D" parent="." node_paths=PackedStringArray("Source")]
+script = ExtResource("26_mirrormesh")
+Source = NodePath("../level1old/Ruin_Keyhole_1")
+
+[node name="PastKeyhole2" type="MeshInstance3D" parent="." node_paths=PackedStringArray("Source")]
+script = ExtResource("26_mirrormesh")
+Source = NodePath("../level1old/Ruin_Keyhole_2")
+
+[node name="PastKeyhole3" type="MeshInstance3D" parent="." node_paths=PackedStringArray("Source")]
+script = ExtResource("26_mirrormesh")
+Source = NodePath("../level1old/Ruin_Keyhole_3")
+
+[node name="PastNicheTomb" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.66, 1.1, 8.05)
+script = ExtResource("27_wallopening")
+Outward = Vector3(0, 0, 1)
+
+[node name="PastNichePyramid" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 1.1, 9.678)
+script = ExtResource("27_wallopening")
+Outward = Vector3(0, 0, -1)
+
+[node name="PastNicheExit" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 1.1, 4.05)
+script = ExtResource("27_wallopening")
+Outward = Vector3(0, 0, 1)
