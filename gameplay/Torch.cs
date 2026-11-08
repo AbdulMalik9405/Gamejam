@@ -18,6 +18,12 @@ public partial class Torch : Pickup
 	[Export] public float MaxMetallic { get; set; } = 0.3f;
 	// Size relative to the model in the file. Keep Torch.tscn's collision shape and Grip in step when changing it.
 	[Export] public float ModelScale { get; set; } = 0.8f;
+	// Put on a wall (Player, with the torch out, looking at a wall): how far the top leans out, and how far the
+	// stick stands off the wall.
+	[Export] public float MountTiltDegrees { get; set; } = 20f;
+	[Export] public float MountStandOff { get; set; } = 0.07f;
+
+	public bool IsMounted { get; private set; }
 
 	private sealed class Model
 	{
@@ -30,6 +36,7 @@ public partial class Torch : Pickup
 	private static readonly Dictionary<string, Model> Models = new();
 
 	private OmniLight3D _light;
+	private Node3D _bracket;
 	private float _time;
 
 	public override void _Ready()
@@ -41,6 +48,9 @@ public partial class Torch : Pickup
 	public override void _Process(double delta)
 	{
 		_time += (float)delta;
+		if (IsHeld)
+			IsMounted = false;
+		_bracket.Visible = IsMounted;
 		_light.LightEnergy = LightEnergy * (1f + 0.07f * Mathf.Sin(_time * 13f) + 0.05f * Mathf.Sin(_time * 29f + 1.3f));
 	}
 
@@ -71,6 +81,50 @@ public partial class Torch : Pickup
 			ShadowEnabled = false,
 		};
 		AddChild(_light);
+		BuildBracket();
+	}
+
+	// Fixes the torch to a wall at point (on the wall, facing out along normal), held at its grip by an iron bracket,
+	// leaning out a little. It stays lit and can be picked up again.
+	public void MountOnWall(Vector3 point, Vector3 normal)
+	{
+		normal = normal.Normalized();
+		float tilt = Mathf.DegToRad(MountTiltDegrees);
+		Vector3 up = (Vector3.Up * Mathf.Cos(tilt) + normal * Mathf.Sin(tilt)).Normalized();
+		Vector3 back = (normal - up * normal.Dot(up)).Normalized();
+		var basis = new Basis(up.Cross(back), up, back);
+		float gripHeight = GetNodeOrNull<Node3D>("Grip")?.Position.Y ?? 0.3f;
+		PlaceAt(new Transform3D(basis, point + normal * MountStandOff - up * gripHeight));
+		IsMounted = true;
+	}
+
+	// A band around the stick at the grip and an arm back to the wall; only shown while mounted.
+	private void BuildBracket()
+	{
+		float gripHeight = GetNodeOrNull<Node3D>("Grip")?.Position.Y ?? 0.3f;
+		var iron = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.1f, 0.09f), Metallic = 0.6f, Roughness = 0.5f };
+		_bracket = new Node3D { Name = "Bracket", Position = new Vector3(0f, gripHeight, 0f), Visible = false };
+		AddChild(_bracket);
+		_bracket.AddChild(new MeshInstance3D
+		{
+			Mesh = new TorusMesh { InnerRadius = 0.026f, OuterRadius = 0.038f },
+			MaterialOverride = iron,
+		});
+		// The wall is behind the stick (local -Z), further along it than MountStandOff because the torch leans.
+		float wall = MountStandOff / Mathf.Cos(Mathf.DegToRad(MountTiltDegrees));
+		const float band = 0.03f;
+		_bracket.AddChild(new MeshInstance3D
+		{
+			Mesh = new BoxMesh { Size = new Vector3(0.022f, 0.022f, wall - band) },
+			MaterialOverride = iron,
+			Position = new Vector3(0f, 0f, -(band + wall) / 2f),
+		});
+		_bracket.AddChild(new MeshInstance3D
+		{
+			Mesh = new BoxMesh { Size = new Vector3(0.07f, 0.09f, 0.012f) },
+			MaterialOverride = iron,
+			Position = new Vector3(0f, 0f, -wall + 0.006f),
+		});
 	}
 
 	private Material HandMaterial(Mesh mesh)

@@ -55,6 +55,11 @@ public partial class Player : CharacterBody3D
 	private PickupSlot _lastTargetSlot;
 	private Pickup _lastSelected;
 	private bool _lastFull;
+	// With a torch out, looking at a wall: where it would be put.
+	private bool _canMount;
+	private bool _lastCanMount;
+	private Vector3 _mountPoint;
+	private Vector3 _mountNormal;
 	private bool _promptDirty = true;
 	private string _prompt = "";
 
@@ -194,6 +199,7 @@ public partial class Player : CharacterBody3D
 		_targetPickup = null;
 		_targetSlot = null;
 		_targetInteractable = null;
+		_canMount = false;
 
 		if (_interactRay.IsColliding())
 		{
@@ -215,11 +221,20 @@ public partial class Player : CharacterBody3D
 		Pickup selected = _inventory.SelectedItem;
 		bool full = _inventory.IsFull;
 
+		// A torch goes on any steep enough surface that isn't something to interact with.
+		if (selected is Torch && _interactRay.IsColliding() && _targetInteractable == null && _targetPickup == null
+			&& _targetSlot == null && Mathf.Abs(_interactRay.GetCollisionNormal().Y) < 0.35f)
+		{
+			_canMount = true;
+			_mountPoint = _interactRay.GetCollisionPoint();
+			_mountNormal = _interactRay.GetCollisionNormal();
+		}
+
 		// Only rebuild the prompt string when something changed, to avoid per-frame allocations.
 		// An Interactable's prompt can change by itself (a torch gets lit), so it's re-read every frame.
 		if (!_promptDirty && _targetInteractable == null && _lastTargetInteractable == null
 			&& _targetPickup == _lastTargetPickup && _targetSlot == _lastTargetSlot
-			&& selected == _lastSelected && full == _lastFull)
+			&& selected == _lastSelected && full == _lastFull && _canMount == _lastCanMount)
 			return;
 		_promptDirty = false;
 		_lastTargetInteractable = _targetInteractable;
@@ -227,6 +242,7 @@ public partial class Player : CharacterBody3D
 		_lastTargetSlot = _targetSlot;
 		_lastSelected = selected;
 		_lastFull = full;
+		_lastCanMount = _canMount;
 
 		string prompt = "";
 		if (_targetInteractable != null)
@@ -235,6 +251,8 @@ public partial class Player : CharacterBody3D
 			prompt = full ? "Inventory full" : $"Pick up {_targetPickup.ItemName}";
 		else if (_targetSlot != null && selected != null)
 			prompt = _targetSlot.CanHold(selected) ? $"Place {selected.ItemName}" : $"Only a {_targetSlot.Accepts} fits here";
+		else if (_canMount)
+			prompt = "Mount torch";
 
 		bool lookingAtPickup = _targetPickup != null && !full;
 		if (prompt == _prompt && lookingAtPickup == IsLookingAtPickup)
@@ -265,6 +283,15 @@ public partial class Player : CharacterBody3D
 		}
 
 		Pickup selected = _inventory.SelectedItem;
+		if (_canMount && selected is Torch torch)
+		{
+			_inventory.RemoveSelected();
+			torch.MountOnWall(_mountPoint, _mountNormal);
+			EmitSignal(SignalName.Dropped, torch.ItemName);
+			_promptDirty = true;
+			return;
+		}
+
 		if (_targetSlot == null || _targetSlot.Occupant != null || !_targetSlot.CanHold(selected))
 			return;
 

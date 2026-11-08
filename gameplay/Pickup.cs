@@ -63,6 +63,17 @@ public partial class Pickup : RigidBody3D
 		RestoreCollision();
 	}
 
+	// Leaves it fixed at transform, out of any slot, where it can be picked up again (e.g. a torch put on a wall).
+	public void PlaceAt(Transform3D transform)
+	{
+		LeaveSlot();
+		IsHeld = false;
+		Visible = true;
+		GlobalTransform = transform;
+		Freeze = true;
+		RestoreCollision();
+	}
+
 	public void Drop(Vector3 velocity)
 	{
 		LeaveSlot();
