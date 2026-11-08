@@ -65,6 +65,16 @@ public partial class Intro : Node
 	private Control _logo;
 	private Control _message;
 	private Label _heading;
+	// The explorer's story card: shown on the parchment after the logo, before they appear in the tomb, until they
+	// press Space. _storyTime counts from when it starts, -1 when there's none; _storyDone once they've continued.
+	private Control _story;
+	private Label _storyPrompt;
+	private float _storyTime = -1f;
+	private bool _storyDone;
+	private float _storyEndedAt;
+	private const float StoryFadeIn = 0.8f;
+	private const float StoryFadeOut = 0.5f;
+	private const float PromptDelay = 1.2f;
 	private Label _subtitle;
 	private Label _tip;
 	private float _hold;
@@ -159,6 +169,36 @@ public partial class Intro : Node
 			return;
 		}
 
+		// The explorer reads their story on the parchment first, and carries on when they press Space.
+		if (_story != null && !_storyDone)
+		{
+			_storyTime = Mathf.Max(_storyTime, 0f) + dt;
+			_backdrop.Color = Parchment;
+			_story.Modulate = new Color(1f, 1f, 1f, Smooth(_storyTime / StoryFadeIn));
+			// The prompt comes in once the lines are up, and breathes while it waits.
+			float prompt = Smooth((_storyTime - PromptDelay) / 0.6f);
+			_storyPrompt.Modulate = new Color(1f, 1f, 1f, prompt * (0.65f + 0.35f * Mathf.Sin(_storyTime * 3f)));
+			if (_storyTime >= PromptDelay && (Input.IsActionJustPressed("jump") || Input.IsActionJustPressed("ui_accept")))
+			{
+				_storyDone = true;
+				_storyEndedAt = t;
+			}
+			return;
+		}
+		if (_story != null)
+		{
+			float gone = (t - _storyEndedAt) / StoryFadeOut;
+			_story.Modulate = new Color(1f, 1f, 1f, 1f - Smooth(gone));
+			if (gone < 1f)
+				return;
+			_story.Visible = false;
+			// The rest of the intro carries on from the end of the logo, as if no time had passed.
+			_time = logoStart + logoEnd;
+			t = _time;
+			sinceLogo = logoEnd;
+			_story = null;
+		}
+
 		if (!_swapped)
 			SwapToPlayer();
 
@@ -191,6 +231,12 @@ public partial class Intro : Node
 		_otherRoom = present ? PastRoomCentre : PresentRoomCentre;
 		_heading.Text = present ? PresentTitle : PastTitle;
 		_subtitle.Text = present ? PresentLine : PastLine;
+		// The explorer gets their lines on the story card before they appear, so in the tomb only the tip shows.
+		_story = present && !_skip ? BuildStory() : null;
+		_storyDone = false;
+		_storyTime = -1f;
+		_heading.Visible = !present;
+		_subtitle.Visible = !present;
 		// The blank first line spaces it off from the subtitle.
 		_tip.Text = "\n" + PresentTip;
 		_tip.Visible = present && PresentTip != "";
@@ -360,6 +406,38 @@ public partial class Intro : Node
 		box.AddChild(_tip);
 		overlay.AddChild(box);
 		_message = box;
+	}
+
+	// Dark ink on the parchment: the explorer's two lines and, below, "[Space to continue]".
+	private Control BuildStory()
+	{
+		var box = new VBoxContainer
+		{
+			Name = "Story",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Alignment = BoxContainer.AlignmentMode.Center,
+			Modulate = Colors.Transparent,
+		};
+		box.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		box.AddThemeConstantOverride("separation", 22);
+		var font = new SystemFont { FontNames = new[] { "Cinzel", "Trajan Pro", "Georgia", "Times New Roman", "serif" } };
+		var ink = new Color(0.22f, 0.14f, 0.07f);
+		Label Line(string text, int size, Color color)
+		{
+			var label = new Label { Text = text, HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+			label.AddThemeFontOverride("font", font);
+			label.AddThemeFontSizeOverride("font_size", size);
+			label.AddThemeColorOverride("font_color", color);
+			box.AddChild(label);
+			return label;
+		}
+		Line(PresentTitle, 52, ink);
+		Line(PresentLine, 34, ink);
+		box.AddChild(new Control { CustomMinimumSize = new Vector2(0f, 40f), MouseFilter = Control.MouseFilterEnum.Ignore });
+		_storyPrompt = Line("[Space to continue]", 24, new Color(0.45f, 0.32f, 0.16f));
+		_storyPrompt.Modulate = Colors.Transparent;
+		_backdrop.GetParent().AddChild(box);
+		return box;
 	}
 
 	private Control BuildLogo()
