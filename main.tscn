@@ -25,6 +25,10 @@
 [ext_resource type="Script" path="res://gameplay/WallOpening.cs" id="27_wallopening"]
 [ext_resource type="Texture2D" uid="uid://b8mddoc73lffj" path="res://art/level1_T_Floor.png" id="22_floor_past"]
 [ext_resource type="Texture2D" uid="uid://clihv2dthyo0d" path="res://art/level1old_T_Floor_Old.png" id="23_floor_present"]
+[ext_resource type="Script" path="res://gameplay/CeilingCollapse.cs" id="28_ceilingcollapse"]
+[ext_resource type="Script" path="res://gameplay/CharacterModel.cs" id="29_charactermodel"]
+[ext_resource type="PackedScene" path="res://art/egyptian.glb" id="30_egyptian"]
+[ext_resource type="PackedScene" path="res://art/mummy.glb" id="31_mummy"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
 
@@ -565,9 +569,17 @@ Keyholes = [NodePath("../Keyholes/Keyhole1"), NodePath("../Keyholes/Keyhole2"), 
 [node name="PassageShotFocus" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.8, 16.264056)
 
+[node name="CeilingCollapse" type="Node" parent="." node_paths=PackedStringArray("Trigger", "PastLevel", "PastCeiling", "BrokenCeiling")]
+script = ExtResource("28_ceilingcollapse")
+Trigger = NodePath("../KeyholeLock")
+PastLevel = NodePath("../level1")
+PastCeiling = NodePath("../level1/Ceiling")
+BrokenCeiling = [NodePath("../level1old/Ruin_Ceiling_1"), NodePath("../level1old/Ruin_Ceiling_2"), NodePath("../level1old/Ruin_Ceiling_3"), NodePath("../level1old/Ruin_Ceiling_4")]
+VictimScene = ExtResource("30_egyptian")
+
 [node name="PassageOpener" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target", "ShotFocus")]
 script = ExtResource("23_moveonsolved")
-Puzzle = NodePath("../KeyholeLock")
+Puzzle = NodePath("../CeilingCollapse")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
 DoneMessage = "Take the tile from the coffin in the main room and place it on the table in the new room."
@@ -641,6 +653,14 @@ shape = SubResource("BoxShape3D_nichegap")
 
 [node name="Mesh" type="MeshInstance3D" parent="level1old/NicheGapFill_West"]
 mesh = SubResource("Plane_nichegap_present_w")
+
+[node name="RoyalMummy" type="Node3D" parent="level1old"]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0, 2.25, 20.02)
+script = ExtResource("29_charactermodel")
+Scene = ExtResource("31_mummy")
+ArmDownDegrees = 38.0
+ElbowBendDegrees = 12.0
+Animate = false
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1190276631]
 environment = SubResource("Environment_tomb")

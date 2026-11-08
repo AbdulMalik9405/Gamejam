@@ -1,3 +1,4 @@
+using Gamejam.Core;
 using Godot;
 
 namespace Gamejam.Gameplay;
@@ -24,6 +25,9 @@ public partial class Player : CharacterBody3D
 	// Ledges up to this high (stairs, slab edges, door sills, the edge of the sunken floor round the sarcophagus) are
 	// stepped up onto without jumping.
 	[Export] public float MaxStepHeight { get; set; } = 0.55f;
+	// The body others see (and whose shadow you see): the explorer in the present, the Egyptian in the past.
+	[Export] public PackedScene PresentCharacter { get; set; }
+	[Export] public PackedScene PastCharacter { get; set; }
 
 	[Signal] public delegate void InteractTargetChangedEventHandler(string prompt);
 	[Signal] public delegate void InteractedEventHandler(string interactableId);
@@ -38,6 +42,8 @@ public partial class Player : CharacterBody3D
 	public bool IsLookingAtPickup { get; private set; }
 	// No moving, looking or interacting, e.g. during a cutscene.
 	public bool InputLocked { get; set; }
+	// The rigged character standing in for the capsule once the era is known; null until then.
+	public CharacterModel Character { get; private set; }
 
 	private static readonly StringName[] SlotActions =
 	{
@@ -119,6 +125,28 @@ public partial class Player : CharacterBody3D
 		_heldView.Setup(this, _camera, _inventory);
 		EnsureDefaultInputActions();
 		Input.MouseMode = Input.MouseModeEnum.Captured;
+	}
+
+	public override void _Process(double delta)
+	{
+		// The era arrives from net/Session just after this node is ready, so the body is swapped in once it's known.
+		if (Character == null)
+			TryCreateCharacter();
+	}
+
+	private void TryCreateCharacter()
+	{
+		if (GameState.Instance == null || !GameState.Instance.Players.TryGetValue(PeerId, out PlayerInfo info))
+			return;
+		PackedScene scene = info.Era == Era.Present
+			? PresentCharacter ?? GD.Load<PackedScene>("res://art/explorer.glb")
+			: PastCharacter ?? GD.Load<PackedScene>("res://art/egyptian.glb");
+		Character = new CharacterModel { Name = "Character", Scene = scene };
+		AddChild(Character);
+		_body.Visible = false;
+		// Our own body stays out of our camera, but its shadow shows.
+		if (_isLocal)
+			Character.SetCastShadow(GeometryInstance3D.ShadowCastingSetting.ShadowsOnly);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

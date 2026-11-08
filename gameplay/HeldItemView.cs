@@ -17,6 +17,10 @@ public partial class HeldItemView : Node
 	[Export] public Vector3 ArmOffset { get; set; } = new(0.02f, -0.09f, -0.07f);
 	// Where an item without a Grip sits, relative to the arm's GripPoint (in front of the palm).
 	[Export] public Vector3 PalmOffset { get; set; } = new(0f, 0.02f, -0.18f);
+	// Items without a Grip no bigger than this across (e.g. the pyramids) sit upright on the curled fingers instead:
+	// the middle of the item's bottom goes this far from the GripPoint, in camera space.
+	[Export] public float SmallItemSize { get; set; } = 0.2f;
+	[Export] public Vector3 FistOffset { get; set; } = new(-0.01f, 0.015f, -0.02f);
 	[Export] public float EquipTime { get; set; } = 0.3f;
 	[Export] public float UnequipTime { get; set; } = 0.2f;
 	// Where a put-away arm sits relative to its resting pose, and how far it swings down at the shoulder.
@@ -69,6 +73,9 @@ public partial class HeldItemView : Node
 	private Inventory _inventory;
 	private Pickup _shown;
 	private Node3D _grip;
+	// For an item held in the fist: the middle of the bottom of its meshes, in its own space.
+	private bool _inFist;
+	private Vector3 _itemBase;
 	private bool _toss;
 	private Node3D _arm;
 	// The fist, with an "open" blend shape for letting go of a tossed torch (gameplay/FingerBend.cs); null without one.
@@ -217,6 +224,13 @@ public partial class HeldItemView : Node
 		_shown = item;
 		_grip = item?.GetNodeOrNull<Node3D>(GripName);
 		_toss = item is Torch;
+		_inFist = false;
+		if (item != null && _grip == null && LocalBounds(item) is Aabb bounds)
+		{
+			Vector3 size = bounds.Size;
+			_inFist = Mathf.Max(size.X, Mathf.Max(size.Y, size.Z)) <= SmallItemSize;
+			_itemBase = bounds.GetCenter() - new Vector3(0f, size.Y * 0.5f, 0f);
+		}
 		if (item != null)
 			item.Visible = true;
 	}
@@ -367,7 +381,25 @@ public partial class HeldItemView : Node
 	{
 		if (_grip != null)
 			return _gripRest * _grip.Transform.AffineInverse();
+		if (_inFist)
+			return new Transform3D(BlockBasis, _gripRest.Origin + FistOffset) * new Transform3D(Basis.Identity, -_itemBase);
 		return new Transform3D(BlockBasis, _gripRest * PalmOffset);
+	}
+
+	// The box around all of an item's meshes, in the item's own space; null without meshes.
+	private static Aabb? LocalBounds(Node3D item)
+	{
+		Aabb? bounds = null;
+		foreach (Node node in item.FindChildren("*", "MeshInstance3D", true, false))
+		{
+			var mesh = (MeshInstance3D)node;
+			Transform3D toItem = Transform3D.Identity;
+			for (Node n = mesh; n != item && n is Node3D n3; n = n.GetParent())
+				toItem = n3.Transform * toItem;
+			Aabb box = toItem * mesh.GetAabb();
+			bounds = bounds is Aabb b ? b.Merge(box) : box;
+		}
+		return bounds;
 	}
 
 	// Karambit-style: a short wind-up the other way, the spins (fast in the middle), then a small overshoot as it's

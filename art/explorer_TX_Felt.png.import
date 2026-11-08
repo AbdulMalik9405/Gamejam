@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cpkks3rsbgrra"
-path="res://.godot/imported/explorer_TX_Felt.png-d5be9edeb4b79a0d4ddb1857936f7d0e.ctex"
+path.s3tc="res://.godot/imported/explorer_TX_Felt.png-d5be9edeb4b79a0d4ddb1857936f7d0e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1299b06f2e59c369686e1a08b45fe35d"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://art/explorer_TX_Felt.png"
-dest_files=["res://.godot/imported/explorer_TX_Felt.png-d5be9edeb4b79a0d4ddb1857936f7d0e.ctex"]
+dest_files=["res://.godot/imported/explorer_TX_Felt.png-d5be9edeb4b79a0d4ddb1857936f7d0e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
