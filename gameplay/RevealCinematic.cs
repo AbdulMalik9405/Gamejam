@@ -15,8 +15,8 @@ public partial class RevealCinematic : Node
 	private const float GlowOut = 0.6f;
 	private const float RumbleShake = 0.025f;
 	private const float RiseShake = 0.012f;
-	private const float GlowLightEnergy = 0.35f;
-	private const float GlowStrength = 0.4f;
+	private const float GlowLightEnergy = 0.18f;
+	private const float GlowStrength = 0.3f;
 	private const float GlowLightRange = 1.2f;
 
 	private Player _player;
@@ -109,7 +109,11 @@ public partial class RevealCinematic : Node
 			* (1f - Mathf.Clamp((t - glowStart - GlowIn - GlowHold) / GlowOut, 0f, 1f));
 		glow = Mathf.SmoothStep(0f, 1f, glow);
 		_glowMaterial.AlbedoColor = _glowColor with { A = GlowStrength * glow };
-		_light.LightEnergy = GlowLightEnergy * glow;
+		// The light builds slowly from the moment the reward starts coming out (e.g. as a wall opening opens),
+		// so it seems to spill out with it, then fades with the glow.
+		float lightIn = Mathf.Clamp((t - shotStart) / (glowStart + GlowIn - shotStart), 0f, 1f);
+		float lightOut = 1f - Mathf.Clamp((t - glowStart - GlowIn - GlowHold) / GlowOut, 0f, 1f);
+		_light.LightEnergy = GlowLightEnergy * Mathf.SmoothStep(0f, 1f, lightIn) * lightOut;
 
 		if (t >= back + FadeTime)
 			Finish();

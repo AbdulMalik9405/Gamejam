@@ -14,7 +14,7 @@ public partial class HeldItemView : Node
 	// Where the hand is, in camera space (right, up, forward is -Z), when the arm model is missing.
 	[Export] public Vector3 HoldOffset { get; set; } = new(0.25f, -0.2f, -0.6f);
 	// Nudges the whole arm from where the model puts it, in camera space.
-	[Export] public Vector3 ArmOffset { get; set; } = new(0f, -0.05f, -0.07f);
+	[Export] public Vector3 ArmOffset { get; set; } = new(0.02f, -0.09f, -0.07f);
 	// Where an item without a Grip sits, relative to the arm's GripPoint (in front of the palm).
 	[Export] public Vector3 PalmOffset { get; set; } = new(0f, 0.02f, -0.18f);
 	[Export] public float EquipTime { get; set; } = 0.3f;
