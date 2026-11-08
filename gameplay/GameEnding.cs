@@ -164,6 +164,22 @@ public partial class GameEnding : Node
 		Wall(new Vector3(mid.X, max.Y, mid.Z), new Vector3(size.X, thick, size.Z));
 	}
 
+	// Testing shortcuts, from either player: Ctrl+K loses the game for both (the lose screen), Ctrl+W wins it.
+	public override void _Input(InputEvent @event)
+	{
+		if (HasEnded || @event is not InputEventKey { Pressed: true, Echo: false, CtrlPressed: true } key)
+			return;
+		if (GameState.Instance == null || !GameState.Instance.IsRunning)
+			return;
+		if (key.Keycode == Key.K)
+			RequestEnd(false);
+		else if (key.Keycode == Key.W)
+			RequestEnd(true);
+		else
+			return;
+		GetViewport().SetInputAsHandled();
+	}
+
 	public override void _Process(double delta)
 	{
 		if (_loseTime >= 0f && IsInstanceValid(_loser) && IsInstanceValid(_attacker))

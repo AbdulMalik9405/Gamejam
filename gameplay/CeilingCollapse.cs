@@ -210,11 +210,6 @@ public partial class CeilingCollapse : Puzzle
 
 	private void OnTriggerSolved()
 	{
-		if (GameState.Instance?.SkippingStages == true)
-		{
-			SkipToEnd();
-			return;
-		}
 		_solvedHere = true;
 		// Pickups are local, so only the present player's machine knows the keys are in. Tell everyone.
 		Rpc(MethodName.Play);
@@ -477,32 +472,6 @@ public partial class CeilingCollapse : Puzzle
 		_title.AddThemeFontSizeOverride("font_size", 46);
 		_title.AddThemeColorOverride("font_color", new Color(0.93f, 0.86f, 0.7f));
 		overlay.AddChild(_title);
-	}
-
-	// Fast-forwarded (admin panel, on every machine at once): everything as the cutscene leaves it, without it. The past
-	// ceiling is broken, the royal coffin burst, the past player is the mummy, and the passage wall is shut again.
-	private void SkipToEnd()
-	{
-		if (_playing || PastLevel == null)
-			return;
-		_playing = true;
-		_finished = true;
-		_solvedHere = true;
-		_rng.Seed = 1234;
-		BreakCeilingForGood();
-		BuildDust();
-		_crypt = Mummy?.GetParent() as Node3D;
-		if (_crypt != null && RoyalCoffin != null)
-		{
-			_cryptDebris = new Node3D { Name = "CoffinDebris" };
-			_crypt.AddChild(_cryptDebris);
-			_coffinRest = RoyalCoffin.Transform;
-			BurstCoffin();
-		}
-		HandMummyToPastPlayer();
-		(GetTree().CurrentScene?.FindChild("PassageOpener", true, false) as MoveOnSolved)?.ResetToStart();
-		IsSolved = true;
-		EmitSignal(SignalName.Solved);
 	}
 
 	private void CutToPast()

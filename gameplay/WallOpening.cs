@@ -136,18 +136,6 @@ public partial class WallOpening : Node3D
 		}));
 	}
 
-	// Already open, the ledge out (admin panel fast-forward).
-	public void OpenNow()
-	{
-		if (_hatch != null)
-			_hatch.Visible = false;
-		if (_ledge != null)
-		{
-			_ledge.Visible = true;
-			_ledge.Position = _ledgeOut;
-		}
-	}
-
 	// Slides the ledge out alongside the reward (same easing as RiseOnSolved's rise).
 	public void SlideOut(float duration)
 	{

@@ -35,15 +35,6 @@ public partial class TorchPuzzle : Puzzle
 		}
 	}
 
-	// Lights exactly the answer (admin panel fast-forward), as if the players had.
-	public void ForceSolve()
-	{
-		if (IsSolved)
-			return;
-		foreach (WallTorch torch in Answer)
-			torch?.Light();
-	}
-
 	private void Fail()
 	{
 		foreach (WallTorch torch in Torches)
@@ -104,7 +95,7 @@ public partial class TorchPuzzle : Puzzle
 
 	private static void Message(string text)
 	{
-		if (text != "" && Events.Instance != null && GameState.Instance?.SkippingStages != true)
+		if (text != "" && Events.Instance != null)
 			Events.Instance.EmitSignal(Events.SignalName.ShowMessage, text, 3f);
 	}
 }

@@ -61,8 +61,7 @@ public partial class PartnerNews : Node
 	// Puzzles are solved on the solver's machine only, so this runs on the present player's machine when they solve one.
 	private void OnPuzzleSolved()
 	{
-		if (GameState.Instance == null || GameState.Instance.LocalEra != Era.Present || Lines.Length == 0
-			|| GameState.Instance.SkippingStages)
+		if (GameState.Instance == null || GameState.Instance.LocalEra != Era.Present || Lines.Length == 0)
 			return;
 		string line = Lines[Mathf.Min(_shown, Lines.Length - 1)];
 		_shown++;

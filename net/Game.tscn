@@ -9,7 +9,6 @@
 [ext_resource type="Script" path="res://gameplay/GameEnding.cs" id="7_ending"]
 [ext_resource type="Script" path="res://audio/Music.cs" id="8_music"]
 [ext_resource type="Script" path="res://gameplay/PartnerNews.cs" id="9_news"]
-[ext_resource type="Script" path="res://net/AdminPanel.cs" id="10_admin"]
 
 [node name="Game" type="Node"]
 script = ExtResource("1_session")
@@ -40,6 +39,3 @@ script = ExtResource("8_music")
 
 [node name="PartnerNews" type="Node" parent="."]
 script = ExtResource("9_news")
-
-[node name="AdminPanel" type="CanvasLayer" parent="."]
-script = ExtResource("10_admin")

@@ -64,17 +64,6 @@ public partial class SlotSequence : Puzzle
 
 	private void OnOccupantChanged(string slotId, string itemName) => Check();
 
-	// Puts every answer piece in its slot (admin panel fast-forward), as if the players had.
-	public void ForceSolve()
-	{
-		if (IsSolved || _slots.Length == 0)
-			return;
-		foreach (Pickup piece in Answer)
-			piece?.Hold();
-		for (int i = 0; i < _slots.Length; i++)
-			Answer[i]?.PlaceIn(_slots[i]);
-	}
-
 	private void Check()
 	{
 		if (IsSolved && StaySolved)
