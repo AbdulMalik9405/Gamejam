@@ -379,13 +379,14 @@ Torches = [NodePath("../level1old/Ruin_Torch_1"), NodePath("../level1old/Ruin_To
 Answer = [NodePath("../level1old/Ruin_Torch_1"), NodePath("../level1old/Ruin_Torch_2"), NodePath("../level1old/Ruin_Torch_4"), NodePath("../level1old/Ruin_Torch_6"), NodePath("../level1old/Ruin_Torch_8"), NodePath("../level1old/Ruin_Torch_9")]
 
 [node name="ExitKey" parent="." instance=ExtResource("7_key")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 196.27, 1.2, 3.877056)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 196.27, 1.1, 3.95)
 
 [node name="ExitKeyReveal" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target")]
 script = ExtResource("9_riseonsolved")
 Puzzle = NodePath("../TorchPuzzle")
 Target = NodePath("../ExitKey")
-StartOffset = Vector3(0, 0, -0.33)
+StartOffset = Vector3(0, 0, -0.45)
+OpenWall = true
 
 [node name="PastRiddle" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 2.47, 3.778056)

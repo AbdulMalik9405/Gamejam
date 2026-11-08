@@ -15,7 +15,8 @@ public partial class RevealCinematic : Node
 	private const float GlowOut = 0.6f;
 	private const float RumbleShake = 0.025f;
 	private const float RiseShake = 0.012f;
-	private const float GlowLightEnergy = 0.8f;
+	private const float GlowLightEnergy = 0.35f;
+	private const float GlowStrength = 0.4f;
 	private const float GlowLightRange = 1.2f;
 
 	private Player _player;
@@ -107,7 +108,7 @@ public partial class RevealCinematic : Node
 		float glow = Mathf.Clamp((t - glowStart) / GlowIn, 0f, 1f)
 			* (1f - Mathf.Clamp((t - glowStart - GlowIn - GlowHold) / GlowOut, 0f, 1f));
 		glow = Mathf.SmoothStep(0f, 1f, glow);
-		_glowMaterial.AlbedoColor = _glowColor with { A = 0.85f * glow };
+		_glowMaterial.AlbedoColor = _glowColor with { A = GlowStrength * glow };
 		_light.LightEnergy = GlowLightEnergy * glow;
 
 		if (t >= back + FadeTime)
@@ -135,8 +136,10 @@ public partial class RevealCinematic : Node
 		Vector3 side = face.LengthSquared() > 0.1f ? face.Normalized() : toPlayer;
 		if (side.Dot(toPlayer) < 0f)
 			side = -side;
-		_shotFrom = _focus + side * 0.75f + Vector3.Up * 0.22f;
-		_shotTo = _focus + side * 0.5f + Vector3.Up * 0.1f;
+		// A reward lying flat (e.g. on a ledge) is seen from higher up, so its whole top shows.
+		bool flat = Mathf.Abs(_target.GlobalBasis.Z.Normalized().Y) > 0.7f;
+		_shotFrom = _focus + side * 0.75f + Vector3.Up * (flat ? 0.45f : 0.22f);
+		_shotTo = _focus + side * 0.5f + Vector3.Up * (flat ? 0.3f : 0.1f);
 		_shot = new Camera3D { Name = "Shot", Fov = 60f };
 		AddChild(_shot);
 
