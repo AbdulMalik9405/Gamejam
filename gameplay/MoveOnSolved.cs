@@ -23,6 +23,9 @@ public partial class MoveOnSolved : Node
 	// Shown once the move is over and the view is back with the player, e.g. what to do next. Empty = nothing.
 	[Export] public string DoneMessage { get; set; } = "";
 	[Export] public float DoneMessageTime { get; set; } = 6f;
+	// Also moves Target on the other machine (no cutscene there). Puzzles are solved per machine (pickups are
+	// local), so without this the passage only opens for the solver, e.g. the mummy couldn't follow the explorer.
+	[Export] public bool SyncToOthers { get; set; } = true;
 
 	private Vector3 _start;
 	private bool _started;
@@ -51,6 +54,9 @@ public partial class MoveOnSolved : Node
 		if (_started)
 			return;
 		_started = true;
+		if (SyncToOthers && Multiplayer.HasMultiplayerPeer()
+			&& Multiplayer.MultiplayerPeer.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected)
+			Rpc(MethodName.MoveForOthers);
 
 		if (Delay > 0f)
 			await ToSignal(GetTree().CreateTimer(Delay), SceneTreeTimer.SignalName.Timeout);
@@ -79,6 +85,18 @@ public partial class MoveOnSolved : Node
 	{
 		if (DoneMessage != "" && Events.Instance != null && IsInsideTree())
 			Events.Instance.EmitSignal(Events.SignalName.ShowMessage, DoneMessage, DoneMessageTime);
+	}
+
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	private async void MoveForOthers()
+	{
+		if (_started || Target == null)
+			return;
+		_started = true;
+		if (Delay > 0f)
+			await ToSignal(GetTree().CreateTimer(Delay), SceneTreeTimer.SignalName.Timeout);
+		if (IsInstanceValid(Target))
+			StartMove();
 	}
 
 	private void StartMove()
