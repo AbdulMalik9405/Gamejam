@@ -20,6 +20,8 @@ public partial class PartnerNews : Node
 	[Export] public float Delay { get; set; } = 1.5f;
 	[Export] public float Duration { get; set; } = 5f;
 	[Export] public float WarpTime { get; set; } = 1.4f;
+	// Extra wait before checking for a cutscene, so one that starts just after the solve (the passage opening) is seen.
+	[Export] public float CutsceneGrace { get; set; } = 1.5f;
 	// How long a line waits for a cutscene to end before it's dropped.
 	[Export] public float MaxWait { get; set; } = 40f;
 
@@ -76,12 +78,16 @@ public partial class PartnerNews : Node
 		await ToSignal(GetTree().CreateTimer(Delay), SceneTreeTimer.SignalName.Timeout);
 		var hud = GetTree().CurrentScene?.GetNodeOrNull<CanvasLayer>("Hud");
 		float waited = 0f;
-		while (hud != null && IsInstanceValid(hud) && !hud.Visible && waited < MaxWait)
+		// Not over a cutscene (on either machine: any cutscene pauses the shared timer), nor one that's about to start
+		// (the passage opening comes a moment after the keys turn).
+		bool Busy() => (hud != null && IsInstanceValid(hud) && !hud.Visible) || GameState.Instance?.IsTimerPaused == true;
+		await ToSignal(GetTree().CreateTimer(CutsceneGrace), SceneTreeTimer.SignalName.Timeout);
+		while (Busy() && waited < MaxWait)
 		{
 			await ToSignal(GetTree().CreateTimer(0.25f), SceneTreeTimer.SignalName.Timeout);
 			waited += 0.25f;
 		}
-		if (hud != null && (!IsInstanceValid(hud) || !hud.Visible))
+		if (Busy())
 			return;
 		Warp(line);
 	}

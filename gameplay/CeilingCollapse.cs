@@ -67,8 +67,8 @@ public partial class CeilingCollapse : Puzzle
 	// The prelude: a pause after the tile is placed, a fade to black, the title, then the room.
 	private const float PreludeDelay = 1.5f;
 	private const float TitleTime = 3.2f;
-	private const float MournWalkSpeed = 1.15f;
-	private const float MournPause = 1.8f;
+	private const float MournWalkSpeed = 1.3f;
+	private const float MournPause = 1.3f;
 	// He walks in (slowing as he hears the rumble), stops, and looks up as it breaks; the camera follows him and
 	// tilts partway up to the ceiling with him.
 	private const float WalkEnd = 1.85f;

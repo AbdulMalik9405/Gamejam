@@ -14,6 +14,8 @@ public partial class Music : Node
 	[Export] public AudioStream GameTrack { get; set; }
 	[Export] public AudioStream PuzzleSting { get; set; }
 	[Export] public AudioStream WinTrack { get; set; }
+	// The win track starts this far in (its opening is skipped).
+	[Export] public float WinTrackStart { get; set; } = 2f;
 	[Export] public AudioStream LoseTrack { get; set; }
 	[Export] public float MenuVolumeDb { get; set; } = -6f;
 	[Export] public float GameVolumeDb { get; set; } = -12f;
@@ -151,7 +153,7 @@ public partial class Music : Node
 		if (_ending.Stream == null)
 			return;
 		_ending.VolumeDb = EndingVolumeDb;
-		_ending.Play();
+		_ending.Play(won ? WinTrackStart : 0f);
 		Tween tween = CreateTween();
 		tween.TweenInterval(Mathf.Max(0f, duration - EndingFadeTime));
 		tween.TweenProperty(_ending, "volume_db", Silent, EndingFadeTime).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.In);

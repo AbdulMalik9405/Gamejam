@@ -5,7 +5,8 @@ namespace Gamejam.Gameplay;
 
 // The last obstacle: boulders (art/level1old.glb's Ruin_Exit_Boulder-rigid) come down the exit ramp every so often.
 // Each one tumbles in over the ramp's side wall near the top, lands on the ramp, rolls down it gathering speed and smashes
-// at the bottom; a few seconds later the next one comes. It never sits at the top, so the way out stays open. Players
+// at the bottom. BoulderCount of them take turns, evenly spaced through the cycle, so a new one comes every
+// Cycle / BoulderCount seconds. It never sits at the top, so the way out stays open. Players
 // dodge into the alcoves in the ramp's walls as it passes and run up between boulders. Anyone it hits is crushed: a
 // death screen, then the game is lost for both (gameplay/GameEnding.cs), as in the spike trap.
 // Its timing comes from the game clock, which both machines share (core/GameState.cs), so both players see the same
@@ -25,6 +26,8 @@ public partial class BoulderRun : Node
 	[Export] public float WarnTime { get; set; } = 0.8f;
 	[Export] public float FallTime { get; set; } = 0.75f;
 	[Export] public float RollTime { get; set; } = 2.3f;
+	// How many boulders share the cycle (each one the same, offset in time), so they come this many times as often.
+	[Export] public int BoulderCount { get; set; } = 2;
 	[Export] public string DeathTitle { get; set; } = "CRUSHED";
 	[Export] public string DeathText { get; set; } = "The boulder rolled right over you.";
 	[Export] public float LoseDelay { get; set; } = 2.5f;
@@ -36,37 +39,53 @@ public partial class BoulderRun : Node
 	private const float RampY0 = 1.6f;
 	private const float RampSlope = -0.667f;
 
-	private RigidBody3D _boulder;
-	private Node3D _visual;
-	private float _lastPhase = -1f;
-	private CpuParticles3D _dust;
+	// The level's boulder and copies of it, each with its own place in the cycle and its own dust.
+	private readonly System.Collections.Generic.List<(RigidBody3D Body, Node3D Visual, CpuParticles3D Dust)> _boulders = new();
+	private float[] _lastPhase = System.Array.Empty<float>();
 	private bool _dead;
 
 	private float Cycle => GoneTime + WarnTime + FallTime + RollTime;
 
 	public override void _Ready()
 	{
-		_boulder = Level?.GetNodeOrNull<RigidBody3D>(BoulderName);
-		if (_boulder == null)
+		var first = Level?.GetNodeOrNull<RigidBody3D>(BoulderName);
+		if (first == null)
 		{
 			GD.PushWarning($"{Name}: no {BoulderName} under Level.");
 			SetProcess(false);
 			return;
 		}
-		// Moved by this script, not by physics, and never solid: it hits by this script's check.
-		_boulder.Freeze = true;
-		_boulder.FreezeMode = RigidBody3D.FreezeModeEnum.Kinematic;
-		_boulder.CollisionLayer = 0;
-		_boulder.CollisionMask = 0;
-		_visual = _boulder.GetChildOrNull<Node3D>(0);
-		_dust = MakeDust();
-		Level.AddChild(_dust);
+		for (int i = 0; i < Mathf.Max(1, BoulderCount); i++)
+		{
+			RigidBody3D body = i == 0 ? first : (RigidBody3D)first.Duplicate();
+			if (i > 0)
+			{
+				body.Name = BoulderName + "_" + i;
+				Level.AddChild(body);
+			}
+			// Moved by this script, not by physics, and never solid: it hits by this script's check.
+			body.Freeze = true;
+			body.FreezeMode = RigidBody3D.FreezeModeEnum.Kinematic;
+			body.CollisionLayer = 0;
+			body.CollisionMask = 0;
+			CpuParticles3D dust = MakeDust();
+			Level.AddChild(dust);
+			_boulders.Add((body, body.GetChildOrNull<Node3D>(0), dust));
+		}
+		_lastPhase = new float[_boulders.Count];
+		System.Array.Fill(_lastPhase, -1f);
 	}
 
 	public override void _Process(double delta)
 	{
 		double now = GameState.Instance?.ElapsedSeconds ?? 0d;
-		float phase = (float)(now % Cycle);
+		for (int i = 0; i < _boulders.Count; i++)
+			Animate(i, (float)((now + Cycle * i / _boulders.Count) % Cycle));
+	}
+
+	private void Animate(int index, float phase)
+	{
+		(RigidBody3D boulder, Node3D visual, CpuParticles3D dust) = _boulders[index];
 		float warnStart = GoneTime;
 		float fallStart = warnStart + WarnTime;
 		float rollStart = fallStart + FallTime;
@@ -97,23 +116,24 @@ public partial class BoulderRun : Node
 		}
 
 		// A trickle of grit where it'll come over; a thud as it lands; a smash at the bottom.
-		if (_lastPhase >= 0f)
+		float last = _lastPhase[index];
+		if (last >= 0f)
 		{
-			if (_lastPhase < warnStart && phase >= warnStart)
-				Burst(new Vector3(FallFrom.X, FallFrom.Y - 2.5f, LaneZ + 0.8f), "boulder_rumble", 12);
-			if (_lastPhase < rollStart && phase >= rollStart)
-				Burst(land + Vector3.Down * Radius, "boulder_land", 30);
-			if (phase < _lastPhase)
-				Burst(new Vector3(BottomX, SurfaceY(BottomX), LaneZ), "boulder_smash", 40);
+			if (last < warnStart && phase >= warnStart)
+				Burst(dust, new Vector3(FallFrom.X, FallFrom.Y - 2.5f, LaneZ + 0.8f), "boulder_rumble", 12);
+			if (last < rollStart && phase >= rollStart)
+				Burst(dust, land + Vector3.Down * Radius, "boulder_land", 30);
+			if (phase < last)
+				Burst(dust, new Vector3(BottomX, SurfaceY(BottomX), LaneZ), "boulder_smash", 40);
 		}
-		_lastPhase = phase;
+		_lastPhase[index] = phase;
 
-		_boulder.Position = at;
-		_boulder.Rotation = new Vector3(tumble, 0f, -roll);
-		if (_visual != null)
-			_visual.Visible = visible;
+		boulder.Position = at;
+		boulder.Rotation = new Vector3(tumble, 0f, -roll);
+		if (visual != null)
+			visual.Visible = visible;
 		if (moving && visible)
-			CheckHit();
+			CheckHit(boulder.Position);
 	}
 
 	// The ramp's surface height under x (Level's space): a short ray down the middle of the ramp from just above its
@@ -128,14 +148,13 @@ public partial class BoulderRun : Node
 	}
 
 	// This machine's player, if the boulder's on them: crushed.
-	private void CheckHit()
+	private void CheckHit(Vector3 centre)
 	{
 		if (_dead || GameState.Instance == null)
 			return;
 		if (GameState.Instance.GetPlayerNode(Multiplayer.GetUniqueId()) is not Player player || player.InputLocked)
 			return;
 		Vector3 local = Level.ToLocal(player.GlobalPosition);
-		Vector3 centre = _boulder.Position;
 		// The player as an upright capsule from their feet to head height.
 		float y = Mathf.Clamp(centre.Y, local.Y + PlayerRadius, local.Y + 1.8f - PlayerRadius);
 		if (new Vector3(local.X, y, local.Z).DistanceTo(centre) > Radius + PlayerRadius)
@@ -189,11 +208,11 @@ public partial class BoulderRun : Node
 		overlay.QueueFree();
 	}
 
-	private void Burst(Vector3 localPosition, string sfx, int amount)
+	private void Burst(CpuParticles3D dust, Vector3 localPosition, string sfx, int amount)
 	{
-		_dust.Position = localPosition;
-		_dust.Amount = amount;
-		_dust.Restart();
+		dust.Position = localPosition;
+		dust.Amount = amount;
+		dust.Restart();
 		Events.Instance?.EmitSignal(Events.SignalName.PlaySfx, sfx, Level.ToGlobal(localPosition));
 	}
 
