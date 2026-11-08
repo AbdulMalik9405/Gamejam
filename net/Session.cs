@@ -17,7 +17,8 @@ public partial class Session : Node
 	[Export] public PackedScene PresentStartItem { get; set; }
 
 	// Players move on their own machine and push their transform to the other peer.
-	private static readonly string[] SyncedProperties = { ".:position", ".:rotation" };
+	// Player.cs glides the other machine's copy towards these, rather than having the raw values jump it about.
+	private static readonly string[] SyncedProperties = { ".:NetPosition", ".:NetYaw" };
 
 	private Node3D _players;
 	private MultiplayerSpawner _spawner;

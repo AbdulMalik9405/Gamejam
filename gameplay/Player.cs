@@ -45,6 +45,13 @@ public partial class Player : CharacterBody3D
 	// The past player after the ceiling collapse: they walk the present as the mummy. A mummy only moves and looks:
 	// it can't pick up, place, drop or hold anything (pickups are kept per machine, so it would desync the explorer's).
 	public bool IsMummy { get; private set; }
+	// Where this player is and which way they face, streamed to the other machine by net/Session.cs's synchronizer.
+	// The owner writes them; the other machine glides its copy towards them (so a late or dropped update doesn't
+	// make the player hop) and snaps straight there after a teleport.
+	[Export] public Vector3 NetPosition { get; set; }
+	[Export] public float NetYaw { get; set; }
+	private const float NetSmoothing = 16f;
+	private const float NetSnapDistance = 3f;
 	// The rigged character standing in for the capsule once the era is known; null until then.
 	public CharacterModel Character { get; private set; }
 
@@ -126,6 +133,8 @@ public partial class Player : CharacterBody3D
 		_gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
 
 		_isLocal = IsMultiplayerAuthority();
+		NetPosition = GlobalPosition;
+		NetYaw = Rotation.Y;
 		_camera.Current = _isLocal;
 		_interactRay.Enabled = _isLocal;
 		if (!_isLocal)
@@ -147,7 +156,25 @@ public partial class Player : CharacterBody3D
 		if (Character == null)
 			TryCreateCharacter();
 		if (_isLocal)
+		{
 			ShareHeldItem((float)delta);
+			// Every frame, not just after walking, so teleports and scripted moves (a cutscene, falling into the
+			// spikes with physics off) reach the other machine too.
+			NetPosition = GlobalPosition;
+			NetYaw = Rotation.Y;
+		}
+		else
+			FollowNetwork((float)delta);
+	}
+
+	private void FollowNetwork(float dt)
+	{
+		Vector3 target = NetPosition;
+		if (GlobalPosition.DistanceTo(target) > NetSnapDistance)
+			GlobalPosition = target;
+		else
+			GlobalPosition = GlobalPosition.Lerp(target, 1f - Mathf.Exp(-NetSmoothing * dt));
+		Rotation = new Vector3(0f, Mathf.LerpAngle(Rotation.Y, NetYaw, 1f - Mathf.Exp(-NetSmoothing * dt)), 0f);
 	}
 
 	// Turns this player into the mummy, on every machine: its body becomes the mummy (with a running stride). On
