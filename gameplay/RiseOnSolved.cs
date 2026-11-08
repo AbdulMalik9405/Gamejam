@@ -17,10 +17,16 @@ public partial class RiseOnSolved : Node
 	// The solver's view rumbles, cuts to Target as it rises and glows, then returns (gameplay/RevealCinematic.cs).
 	[Export] public bool PlayCinematic { get; set; } = true;
 	[Export] public Color GlowColor { get; set; } = new Color(1f, 0.78f, 0.3f);
+	// For a reward that comes out of a wall (StartOffset pointing into it): builds a small carved niche there whose
+	// hatch opens before the reward slides out on a stone ledge (gameplay/WallOpening.cs). Place Target lying on
+	// where the ledge will be, just out from the wall.
+	[Export] public bool OpenWall { get; set; }
+	[Export] public float LedgeLength { get; set; } = 0.42f;
 
 	private Vector3 _endPosition;
 	private uint _layer;
 	private bool _revealed;
+	private WallOpening _opening;
 
 	public override void _Ready()
 	{
@@ -57,6 +63,19 @@ public partial class RiseOnSolved : Node
 			body.CollisionLayer = 0;
 		}
 
+		if (OpenWall && Target.GetParent() is Node3D targetParent)
+		{
+			_opening = new WallOpening
+			{
+				Name = Target.Name + "Opening",
+				Reward = Target,
+				RewardEnd = targetParent.GlobalTransform * _endPosition,
+				Travel = -(targetParent.GlobalBasis * StartOffset),
+				LedgeLength = LedgeLength,
+			};
+			targetParent.AddChild(_opening);
+		}
+
 		Puzzle.Solved += OnSolved;
 		if (Puzzle.IsSolved)
 			OnSolved();
@@ -75,13 +94,23 @@ public partial class RiseOnSolved : Node
 
 		// The cutscene starts the rise itself, once the view is on Target.
 		Vector3 end = Target.GetParent() is Node3D parent ? parent.GlobalTransform * _endPosition : _endPosition;
-		if (PlayCinematic && RevealCinematic.Play(this, Target, end + Vector3.Up * 0.03f, Duration, GlowColor, StartRise))
+		float riseTime = Duration + (_opening != null ? _opening.OpenTime : 0f);
+		if (PlayCinematic && RevealCinematic.Play(this, Target, end + Vector3.Up * 0.03f, riseTime, GlowColor, StartRise))
 			return;
 		StartRise();
 	}
 
 	private void StartRise()
 	{
+		if (_opening != null)
+			_opening.Open(Rise);
+		else
+			Rise();
+	}
+
+	private void Rise()
+	{
+		_opening?.SlideOut(Duration);
 		Tween tween = CreateTween().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
 		tween.TweenProperty(Target, "position", _endPosition, Duration);
 		tween.TweenCallback(Callable.From(OnRiseFinished));
