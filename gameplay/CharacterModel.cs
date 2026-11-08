@@ -232,8 +232,10 @@ public partial class CharacterModel : Node3D
 		RotateBone(_head, Vector3.Right, drift * 0.4f * Mathf.Sin(_idleTime * 0.47f + 0.5f));
 	}
 
-	// One arm up with the elbow bent, the other hand on the hip, swapping every half beat; the hips swing out on each
-	// beat (the legs lean back the other way so the feet stay put) and the knees bounce.
+	// One arm up with the elbow bent, the other hand on the hip, swapping every half beat. The hips lead: they pop out
+	// to one side on each beat and roll round in a figure-of-eight (side sway, a twist, and a forward-back tilt at twice
+	// the speed); the knee on the dropping side gives, the body shifts over, and the chest counters so the shoulders
+	// stay level (the legs lean back the other way so the feet stay put).
 	private void PoseDance(float amount)
 	{
 		const float beat = 0.6f;
@@ -241,22 +243,36 @@ public partial class CharacterModel : Node3D
 		float swap = Mathf.Sin(t * Mathf.Pi / beat);
 		float leftUp = Mathf.SmoothStep(-0.35f, 0.65f, swap) * amount;
 		float rightUp = Mathf.SmoothStep(-0.35f, 0.65f, -swap) * amount;
-		float hip = Mathf.Sin(t * Mathf.Tau / beat) * amount;
+		float phase = t * Mathf.Tau / beat;
+		// A pop rather than a sway: quick out to the side, held, quick back.
+		float wave = Mathf.Sin(phase);
+		float hip = Mathf.Sign(wave) * Mathf.Pow(Mathf.Abs(wave), 0.55f) * amount;
+		float twist = Mathf.Cos(phase) * amount;
+		float tilt = Mathf.Sin(phase * 2f) * amount;
 		float bounce = Mathf.Abs(Mathf.Sin(t * Mathf.Pi / beat * 2f)) * amount;
 
-		RotateBone(_hips, Vector3.Back, Mathf.DegToRad(9f) * hip);
-		RotateBone(_leftUpperLeg, Vector3.Back, -Mathf.DegToRad(9f) * hip);
-		RotateBone(_rightUpperLeg, Vector3.Back, -Mathf.DegToRad(9f) * hip);
-		RotateBone(_spine, Vector3.Back, -Mathf.DegToRad(7f) * hip);
-		RotateBone(_chest, Vector3.Back, -Mathf.DegToRad(4f) * hip);
-		RotateBone(_head, Vector3.Back, Mathf.DegToRad(6f) * hip);
-		// Knees give a little on each beat.
-		RotateBone(_leftUpperLeg, Vector3.Right, -Mathf.DegToRad(10f) * bounce);
-		RotateBone(_rightUpperLeg, Vector3.Right, -Mathf.DegToRad(10f) * bounce);
-		RotateBone(_leftLowerLeg, Vector3.Right, Mathf.DegToRad(20f) * bounce);
-		RotateBone(_rightLowerLeg, Vector3.Right, Mathf.DegToRad(20f) * bounce);
+		RotateBone(_hips, Vector3.Back, Mathf.DegToRad(15f) * hip);
+		RotateBone(_hips, Vector3.Up, Mathf.DegToRad(14f) * twist);
+		RotateBone(_hips, Vector3.Right, Mathf.DegToRad(6f) * tilt);
+		RotateBone(_leftUpperLeg, Vector3.Back, -Mathf.DegToRad(15f) * hip);
+		RotateBone(_rightUpperLeg, Vector3.Back, -Mathf.DegToRad(15f) * hip);
+		RotateBone(_leftUpperLeg, Vector3.Up, -Mathf.DegToRad(14f) * twist);
+		RotateBone(_rightUpperLeg, Vector3.Up, -Mathf.DegToRad(14f) * twist);
+		RotateBone(_spine, Vector3.Back, -Mathf.DegToRad(11f) * hip);
+		RotateBone(_spine, Vector3.Up, -Mathf.DegToRad(9f) * twist);
+		RotateBone(_spine, Vector3.Right, -Mathf.DegToRad(4f) * tilt);
+		RotateBone(_chest, Vector3.Back, -Mathf.DegToRad(6f) * hip);
+		RotateBone(_chest, Vector3.Up, -Mathf.DegToRad(6f) * twist);
+		RotateBone(_head, Vector3.Back, Mathf.DegToRad(4f) * hip);
+		// Knees give on each beat, the one on the side the hip drops to more.
+		float dropLeft = Mathf.Max(0f, -hip);
+		float dropRight = Mathf.Max(0f, hip);
+		RotateBone(_leftUpperLeg, Vector3.Right, -Mathf.DegToRad(8f + 14f * dropLeft) * Mathf.Max(bounce, dropLeft));
+		RotateBone(_rightUpperLeg, Vector3.Right, -Mathf.DegToRad(8f + 14f * dropRight) * Mathf.Max(bounce, dropRight));
+		RotateBone(_leftLowerLeg, Vector3.Right, Mathf.DegToRad(16f + 28f * dropLeft) * Mathf.Max(bounce, dropLeft));
+		RotateBone(_rightLowerLeg, Vector3.Right, Mathf.DegToRad(16f + 28f * dropRight) * Mathf.Max(bounce, dropRight));
 		if (_model != null)
-			_model.Position = new Vector3(Mathf.DegToRad(9f) * hip * 0.25f, -0.035f * bounce, 0f);
+			_model.Position = new Vector3(0.06f * hip, -0.03f * bounce - 0.025f * Mathf.Abs(hip), 0f);
 
 		DanceArm(_leftUpperArm, _leftLowerArm, 1f, leftUp, amount);
 		DanceArm(_rightUpperArm, _rightLowerArm, -1f, rightUp, amount);
