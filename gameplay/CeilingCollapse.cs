@@ -105,8 +105,11 @@ public partial class CeilingCollapse : Puzzle
 	// The lid is the royal coffin flattened to this much of its depth.
 	private const float LidDepthScale = 0.45f;
 	private const int PlugCells = 3;
-	private const int RubbleCount = 26;
-	private const int PebbleCount = 14;
+	private const int RubbleCount = 40;
+	private const int PebbleCount = 22;
+	// After the main fall, loose bits keep dropping from the edges of the hole for a while.
+	private const int AftershockCount = 18;
+	private const float AftershockEnd = 6.5f;
 	// Gravel that pours down with the big stones, and how many of the big ones throw up a puff of dust as they land.
 	private const int GravelCount = 28;
 	private const int MaxLandingPuffs = 12;
@@ -706,6 +709,15 @@ public partial class CeilingCollapse : Puzzle
 				PuffOnLanding(rock);
 			_pending.Add((_rng.RandfRange(BreakTime + 0.05f, RubbleEnd), rock));
 		}
+		for (int i = 0; i < AftershockCount; i++)
+		{
+			float s = _rng.RandfRange(0.05f, 0.18f);
+			// Round the rim of the hole, where the ceiling is still breaking away.
+			bool alongX = _rng.Randf() < 0.5f;
+			float x = alongX ? _rng.RandfRange(HoleMin.X, HoleMax.X) : (_rng.Randf() < 0.5f ? HoleMin.X + 0.1f : HoleMax.X - 0.1f);
+			float z = alongX ? (_rng.Randf() < 0.5f ? HoleMin.Z + 0.1f : HoleMax.Z - 0.1f) : _rng.RandfRange(HoleMin.Z, HoleMax.Z);
+			_pending.Add((_rng.RandfRange(RubbleEnd, AftershockEnd), MakeRock(new Vector3(s, s * 0.7f, s * 0.9f), new Vector3(x, HoleMin.Y - 0.05f, z))));
+		}
 		for (int i = 0; i < GravelCount; i++)
 		{
 			float s = _rng.RandfRange(0.035f, 0.09f);
@@ -1007,6 +1019,7 @@ public partial class CeilingCollapse : Puzzle
 		var body = new CharacterModel { Name = "Entombed", Scene = VictimScene, Animate = false, ArmDownDegrees = 46f, ElbowBendDegrees = 6f };
 		_coffin.AddChild(body);
 		body.Transform = new Transform3D(new Basis(Vector3.Right, Mathf.DegToRad(90f)), new Vector3(0f, 0.16f, -halfLength + 0.16f));
+		WrapInBandages(-halfLength + 0.16f);
 
 		// The lid is the royal coffin itself, flattened, so its outline is the trough's. It hinges on the trough's
 		// widest +X edge and lies face up, head end towards +Z, its back on the walls when shut.
@@ -1028,6 +1041,56 @@ public partial class CeilingCollapse : Puzzle
 		_slamDust.EmissionRingInnerRadius = 0.3f;
 		_slamDust.Amount = 30;
 		AnimateCoffin(0f);
+	}
+
+	// Linen strips wound round him where he lies (feet at feetZ, head towards +Z, on his back): bands round the feet,
+	// legs, body (arms and all), neck and head, each at a slightly different angle, two straps crossing his chest, and a
+	// loose end trailing off the side.
+	private void WrapInBandages(float feetZ)
+	{
+		var linen = new StandardMaterial3D { AlbedoColor = new Color(0.86f, 0.8f, 0.66f), Roughness = 1f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+		if (ResourceLoader.Exists("res://art/mummy_TX_Bandage.png"))
+		{
+			linen.AlbedoTexture = GD.Load<Texture2D>("res://art/mummy_TX_Bandage.png");
+			linen.Uv1Triplanar = true;
+			linen.Uv1Scale = Vector3.One * 3f;
+			linen.AlbedoColor = new Color(0.95f, 0.92f, 0.85f);
+		}
+		var rng = new RandomNumberGenerator { Seed = 4242 };
+		var wraps = new Node3D { Name = "Bandages" };
+		_coffin.AddChild(wraps);
+		// Along the body from the feet: how far up it, and the half-width and half-height of the body there.
+		var bands = new (float Along, float Width, float Height)[]
+		{
+			(0.06f, 0.11f, 0.08f), (0.16f, 0.13f, 0.08f), (0.3f, 0.14f, 0.09f), (0.44f, 0.15f, 0.1f), (0.58f, 0.17f, 0.11f),
+			(0.72f, 0.19f, 0.12f), (0.86f, 0.21f, 0.13f), (0.98f, 0.24f, 0.14f), (1.1f, 0.26f, 0.14f), (1.22f, 0.27f, 0.14f),
+			(1.34f, 0.27f, 0.14f), (1.45f, 0.24f, 0.13f), (1.55f, 0.08f, 0.07f), (1.65f, 0.11f, 0.11f), (1.75f, 0.11f, 0.11f),
+		};
+		const float centreY = 0.25f;
+		foreach ((float along, float width, float height) in bands)
+		{
+			var band = new MeshInstance3D
+			{
+				Mesh = new CylinderMesh { TopRadius = 1f, BottomRadius = 1f, Height = rng.RandfRange(0.07f, 0.1f), CapTop = false, CapBottom = false, RadialSegments = 20, Rings = 1 },
+				MaterialOverride = linen,
+			};
+			wraps.AddChild(band);
+			// The cylinder's axis turned to run along the body, squashed to the body's shape, and tipped a little.
+			var tip = new Basis(Vector3.Up, rng.RandfRange(-0.25f, 0.25f)) * new Basis(Vector3.Forward, rng.RandfRange(-0.15f, 0.15f));
+			band.Transform = new Transform3D(tip * new Basis(Vector3.Right, Mathf.DegToRad(90f)) * Basis.FromScale(new Vector3(width + 0.012f, 1f, height + 0.012f)),
+				new Vector3(rng.RandfRange(-0.01f, 0.01f), centreY, feetZ + along));
+		}
+		// Two straps crossing the chest, over the arms.
+		foreach (float side in new[] { 1f, -1f })
+		{
+			var strap = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.07f, 0.006f, 0.62f) }, MaterialOverride = linen };
+			wraps.AddChild(strap);
+			strap.Transform = new Transform3D(new Basis(Vector3.Up, side * 0.55f), new Vector3(0f, centreY + 0.145f, feetZ + 1.18f));
+		}
+		// A loose end hanging over the side of the body.
+		var loose = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.24f, 0.005f, 0.07f) }, MaterialOverride = linen };
+		wraps.AddChild(loose);
+		loose.Transform = new Transform3D(new Basis(Vector3.Back, 0.9f), new Vector3(0.26f, centreY - 0.02f, feetZ + 0.8f));
 	}
 
 	// How wide the coffin is (half, from its centre line) at evenly spaced points from its foot (mesh Y min) to its head.
