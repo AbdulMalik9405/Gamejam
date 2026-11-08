@@ -6,14 +6,14 @@ namespace Gamejam.Gameplay;
 // How the game ends, for both players at once. Lost (the timer runs out, or a player dies in the spike trap) or won
 // (a player gets halfway up the exit stair): the screen fades to black, both players appear on the two floor circles of
 // art/spawn_room.glb (a room of its own, away from both maps), red and hanging their heads in shame when lost, blue and
-// dancing when won, seen from in front. After ScreenTime it fades out and both go back to the menu.
+// dancing when won, seen from in front. After ScreenTime (20 s) it fades out and both go back to the menu.
 // The music for it is played by audio/Music.cs on EndingStarted. Anything may call RequestEnd; it's sent to both.
 public partial class GameEnding : Node
 {
 	[Export] public PackedScene RoomScene { get; set; }
 	// Far from both maps (past at the origin, present at +200 m X), so neither sees it or its lights.
 	[Export] public Vector3 RoomPosition { get; set; } = new Vector3(-200f, 0f, 0f);
-	[Export] public float ScreenTime { get; set; } = 10f;
+	[Export] public float ScreenTime { get; set; } = 20f;
 	[Export] public float FadeTime { get; set; } = 0.6f;
 	// The win line: a box across the exit stair's middle step, in the present map's (level1old) space.
 	[Export] public Vector3 WinZoneCenter { get; set; } = new Vector3(-23.05f, 5.9f, 16.3f);
