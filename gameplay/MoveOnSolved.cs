@@ -20,6 +20,9 @@ public partial class MoveOnSolved : Node
 	[Export] public Node3D ShotFocus { get; set; }
 	// Played at Target through Events.PlaySfx. Empty = no sound.
 	[Export] public string SfxName { get; set; } = "";
+	// Shown once the move is over and the view is back with the player, e.g. what to do next. Empty = nothing.
+	[Export] public string DoneMessage { get; set; } = "";
+	[Export] public float DoneMessageTime { get; set; } = 6f;
 
 	private Vector3 _start;
 	private bool _started;
@@ -59,8 +62,23 @@ public partial class MoveOnSolved : Node
 		Vector3 focus = ShotFocus != null ? ShotFocus.GlobalPosition : Target.GlobalPosition;
 		// Black adds nothing, so the cutscene shows the move without a glow.
 		if (PlayCinematic && RevealCinematic.Play(this, Target, focus, Duration, Colors.Black, StartMove))
+		{
+			// The HUD is hidden during the cutscene, so the message waits until it's over.
+			Node cinematic = GetNodeOrNull("RevealCinematic");
+			if (cinematic != null)
+				await ToSignal(cinematic, Node.SignalName.TreeExited);
+			ShowDoneMessage();
 			return;
+		}
 		StartMove();
+		await ToSignal(GetTree().CreateTimer(Duration), SceneTreeTimer.SignalName.Timeout);
+		ShowDoneMessage();
+	}
+
+	private void ShowDoneMessage()
+	{
+		if (DoneMessage != "" && Events.Instance != null && IsInsideTree())
+			Events.Instance.EmitSignal(Events.SignalName.ShowMessage, DoneMessage, DoneMessageTime);
 	}
 
 	private void StartMove()
