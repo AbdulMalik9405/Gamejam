@@ -32,6 +32,11 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uh84"]
 
+[sub_resource type="StandardMaterial3D" id="Mat_desert_sky"]
+shading_mode = 0
+albedo_color = Color(0.5, 0.7, 0.93, 1)
+cull_mode = 2
+
 [sub_resource type="StandardMaterial3D" id="Mat_shelf"]
 albedo_color = Color(0.58, 0.49, 0.38, 1)
 roughness = 0.9
@@ -364,6 +369,64 @@ script = ExtResource("19_walltorch")
 
 [node name="Ruin_Torch_9" parent="level1old" index="142"]
 script = ExtResource("19_walltorch")
+
+[node name="Ruin_Trap_Light_1" parent="level1old" index="283"]
+light_energy = 0.9
+omni_range = 7.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Trap_Light_2" parent="level1old" index="284"]
+light_energy = 0.9
+omni_range = 7.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Trap_Light_3" parent="level1old" index="285"]
+light_energy = 0.9
+omni_range = 7.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Trap_Light_4" parent="level1old" index="286"]
+light_energy = 0.9
+omni_range = 7.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Trap_PitGlow" parent="level1old" index="292"]
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 0.8
+
+[node name="Ruin_Exit_StairLight_1" parent="level1old" index="124"]
+light_energy = 0.8
+omni_range = 6.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Exit_StairLight_2" parent="level1old" index="125"]
+light_energy = 0.8
+omni_range = 6.0
+omni_attenuation = 1.5
+
+[node name="Ruin_Desert_Sun" parent="level1old" index="61"]
+light_energy = 1.6
+light_cull_mask = 2
+
+[node name="Ruin_Desert_Dunes_001" parent="level1old" index="59"]
+layers = 3
+
+[node name="Ruin_Desert_SkyDome" parent="level1old" index="60"]
+layers = 3
+material_override = SubResource("Mat_desert_sky")
+
+[node name="Ruin_Exit_Landing" parent="level1old" index="69"]
+layers = 3
+
+[node name="Ruin_Exit_Lintel_Broken" parent="level1old" index="70"]
+layers = 3
+
+[node name="Ruin_Exit_Pylon_N" parent="level1old" index="71"]
+layers = 3
+
+[node name="Ruin_Exit_Pylon_S" parent="level1old" index="72"]
+layers = 3
 
 [node name="SpawnPast" type="Marker3D" parent="." unique_id=1404518722 groups=["spawn_points"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7300277, 0.2, 12.864056)
