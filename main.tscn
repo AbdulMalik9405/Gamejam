@@ -571,7 +571,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.27, 2.8, 16.264056)
 
 [node name="CeilingCollapse" type="Node" parent="." node_paths=PackedStringArray("Trigger", "PastLevel", "PastCeiling", "BrokenCeiling", "RoyalCoffin")]
 script = ExtResource("28_ceilingcollapse")
-Trigger = NodePath("../KeyholeLock")
+Trigger = NodePath("../TilePuzzle")
 PastLevel = NodePath("../level1")
 PastCeiling = NodePath("../level1/Ceiling")
 BrokenCeiling = [NodePath("../level1old/Ruin_Ceiling_1"), NodePath("../level1old/Ruin_Ceiling_2"), NodePath("../level1old/Ruin_Ceiling_3"), NodePath("../level1old/Ruin_Ceiling_4")]
@@ -580,7 +580,7 @@ RoyalCoffin = NodePath("../level1old/Ruin_Crypt_Coffin_Royal")
 
 [node name="PassageOpener" type="Node" parent="." node_paths=PackedStringArray("Puzzle", "Target", "ShotFocus")]
 script = ExtResource("23_moveonsolved")
-Puzzle = NodePath("../CeilingCollapse")
+Puzzle = NodePath("../KeyholeLock")
 Target = NodePath("../level1old/Ruin_Corridor_End")
 ShotFocus = NodePath("../PassageShotFocus")
 DoneMessage = "Take the tile from the coffin in the main room and place it on the table in the new room."
