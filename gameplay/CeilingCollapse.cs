@@ -11,7 +11,8 @@ namespace Gamejam.Gameplay;
 /// intact past room, where the Egyptian walks slowly round the sarcophagus, stopping to mourn. Then: he walks in as the ground
 /// rumbles and dust trickles down, looks up, the ceiling above the spot that's open in the present breaks, and the
 /// rubble buries him (he goes limp, a ragdoll). Then it cuts to the same room, where he's laid in the royal coffin on
-/// the floor and its lid swings shut on him. Then to the present's crypt: the royal coffin there rattles and bursts
+/// the floor and its lid swings shut on him. Then "In the modern day...", and the explorer climbing the stairs into the
+/// crypt. Then the crypt itself: the royal coffin there rattles and bursts
 /// open, and he comes out as the mummy and runs at the explorer (seen through the explorer's eyes). Then both players
 /// get their own views back, and only then does this count as solved on the present player's machine (for whatever
 /// comes next). Nobody dies.
@@ -49,6 +50,13 @@ public partial class CeilingCollapse : Puzzle
 	[Export] public Vector3 MummyCameraPosition { get; set; } = new(1.1f, 3.0f, 17.2f);
 	[Export] public Vector3 MummyCameraTarget { get; set; } = new(0f, 2.9f, 19.9f);
 	[Export] public Vector3 MummyExit { get; set; } = new(0f, 1.6f, 19.0f);
+	// The explorer's walk into the crypt, in the mummy's parent's space: from the main room, to the foot of the stairs,
+	// up them (StairsTop) and on to the crypt's doorway, then to wherever the explorer really stands.
+	[Export] public string ModernTitle { get; set; } = "In the modern day...";
+	[Export] public Vector3 ModernWalkFrom { get; set; } = new(0f, 0f, 3.75f);
+	[Export] public Vector3 StairsBottom { get; set; } = new(0f, 0f, 5.35f);
+	[Export] public Vector3 StairsTop { get; set; } = new(0f, 1.6f, 9.1f);
+	[Export] public Vector3 CryptDoorway { get; set; } = new(0f, 1.6f, 13.6f);
 
 	// Seconds from the cut to the past room.
 	private const float FadeTime = 0.5f;
@@ -76,7 +84,11 @@ public partial class CeilingCollapse : Puzzle
 	private const float CoffinEnd = CoffinStart + LidDelay + LidTime + 1.5f;
 	// The mummy shot, from its cut: two rattles, the burst, stepping out, then the cut to the explorer's eyes for the
 	// run, which ends RunStopShort in front of them.
-	private const float MummyStart = CoffinEnd + FadeTime;
+	// "In the modern day...", then the explorer walking up the stairs into the crypt, ending where the explorer really
+	// stands. The mummy shot follows once that's over (its start depends on how far the walk is).
+	private const float ModernStart = CoffinEnd + FadeTime;
+	private const float ModernWalkStart = ModernStart + TitleTime;
+	private const float ModernWalkSpeed = 1.7f;
 	private const float RattleOne = 0.7f;
 	private const float RattleTwo = 1.4f;
 	private const float BurstTime = 2.1f;
@@ -128,6 +140,12 @@ public partial class CeilingCollapse : Puzzle
 	private CpuParticles3D _slamDust;
 	private bool _inMummy, _coffinBroken, _atPov;
 	private float _mummyEnd = -1f;
+	private bool _modernBuilt;
+	private float _modernEnd = float.MaxValue;
+	private float _mummyShotStart = float.MaxValue;
+	private Node3D _explorerWalker;
+	private readonly List<Vector3> _modernPath = new();
+	private float _modernLength;
 	private Node3D _crypt;
 	private Node3D _cryptDebris;
 	private Transform3D _coffinRest;
@@ -202,10 +220,14 @@ public partial class CeilingCollapse : Puzzle
 		float fade;
 		if (t < CoffinStart)
 			fade = Mathf.Max(1f - Mathf.Clamp(t / FadeTime, 0f, 1f), Mathf.Clamp((t - ShotEnd) / FadeTime, 0f, 1f));
-		else if (t < MummyStart)
+		else if (t < ModernStart)
 			fade = Mathf.Max(1f - Mathf.Clamp((t - CoffinStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - CoffinEnd) / FadeTime, 0f, 1f));
+		else if (t < ModernWalkStart)
+			fade = 1f;
+		else if (t < _mummyShotStart)
+			fade = Mathf.Max(1f - Mathf.Clamp((t - ModernWalkStart) / FadeTime, 0f, 1f), Mathf.Clamp((t - _modernEnd) / FadeTime, 0f, 1f));
 		else
-			fade = Mathf.Max(1f - Mathf.Clamp((t - MummyStart) / FadeTime, 0f, 1f), _mummyEnd >= 0f ? Mathf.Clamp((t - _mummyEnd) / FadeTime, 0f, 1f) : 0f);
+			fade = Mathf.Max(1f - Mathf.Clamp((t - _mummyShotStart) / FadeTime, 0f, 1f), _mummyEnd >= 0f ? Mathf.Clamp((t - _mummyEnd) / FadeTime, 0f, 1f) : 0f);
 		_fade.Color = new Color(0f, 0f, 0f, fade);
 
 		if (!_inCoffin)
@@ -216,12 +238,16 @@ public partial class CeilingCollapse : Puzzle
 		ReleaseRubble(t);
 		if (!_inCoffin && t >= CoffinStart)
 			CutToCoffin();
-		if (_inCoffin && !_inMummy)
+		if (_inCoffin && t < ModernStart)
 			AnimateCoffin(t - CoffinStart);
-		if (!_inMummy && t >= MummyStart)
+		if (!_modernBuilt && t >= ModernStart)
+			BuildModern();
+		if (_modernBuilt && t < _mummyShotStart)
+			AnimateModern(t, dt);
+		if (!_inMummy && t >= _mummyShotStart)
 			CutToMummy();
 		if (_inMummy && !_cutBack)
-			AnimateMummy(t, t - MummyStart, dt);
+			AnimateMummy(t, t - _mummyShotStart, dt);
 
 		if (!_broke && t >= BreakTime)
 			Break();
@@ -415,6 +441,109 @@ public partial class CeilingCollapse : Puzzle
 	// While the cutscene's Egyptian stands in for him, the real past player's body is hidden, here and on the other
 	// machine. He gets it back at the end.
 	private void HidePastPlayers() => SetPastPlayersShown(false);
+
+	// The present: "In the modern day..." on black, then the explorer (a stand-in, carrying a torch; the real one is
+	// hidden until the end) walking to the stairs, up into the crypt, and to where the real explorer stands.
+	private void BuildModern()
+	{
+		_modernBuilt = true;
+		_title.Text = ModernTitle;
+		_crypt = Mummy?.GetParent() as Node3D;
+		Player explorer = PresentPlayer();
+		SetPresentPlayersShown(false);
+		if (_crypt == null)
+		{
+			_modernEnd = ModernWalkStart;
+			_mummyShotStart = _modernEnd + FadeTime;
+			return;
+		}
+
+		_modernPath.Clear();
+		_modernPath.Add(ModernWalkFrom);
+		_modernPath.Add(StairsBottom);
+		_modernPath.Add(StairsTop);
+		_modernPath.Add(CryptDoorway);
+		Vector3 stand = explorer != null ? _crypt.ToLocal(explorer.GlobalPosition) : CryptDoorway + new Vector3(0f, 0f, 1.2f);
+		if (stand.Z > CryptDoorway.Z + 0.3f)
+			_modernPath.Add(stand with { Y = CryptDoorway.Y });
+		_modernLength = 0f;
+		for (int i = 1; i < _modernPath.Count; i++)
+			_modernLength += _modernPath[i - 1].DistanceTo(_modernPath[i]);
+		_modernEnd = ModernWalkStart + _modernLength / ModernWalkSpeed + 0.4f;
+		_mummyShotStart = _modernEnd + FadeTime;
+
+		_explorerWalker = new Node3D { Name = "ExplorerWalker" };
+		_crypt.AddChild(_explorerWalker);
+		var body = new CharacterModel { Name = "Explorer", Scene = GD.Load<PackedScene>("res://art/explorer.glb"), Animate = true, WalkSpeed = 1.7f, StrideLength = 1.1f };
+		_explorerWalker.AddChild(body);
+		if (ResourceLoader.Exists("res://gameplay/Torch.tscn") && GD.Load<PackedScene>("res://gameplay/Torch.tscn").Instantiate() is Pickup torch)
+		{
+			torch.Freeze = true;
+			torch.CreateSlotAtStart = false;
+			torch.CollisionLayer = 0;
+			torch.CollisionMask = 0;
+			torch.Ready += () => torch.CollisionLayer = 0;
+			_explorerWalker.AddChild(torch);
+			body.HeldItem = torch;
+		}
+		AnimateModern(ModernWalkStart, 0f);
+	}
+
+	private void AnimateModern(float t, float dt)
+	{
+		float title = t - ModernStart;
+		_title.Modulate = new Color(1f, 1f, 1f, Mathf.Clamp(title / 0.8f, 0f, 1f) * (1f - Mathf.Clamp((title - TitleTime + 0.8f) / 0.8f, 0f, 1f)));
+		if (_explorerWalker == null || t < ModernWalkStart)
+			return;
+
+		// Along the path at a steady walk (the stairs as an even slope), turning smoothly at each corner.
+		float distance = Mathf.Min((t - ModernWalkStart) * ModernWalkSpeed, _modernLength);
+		Vector3 at = _modernPath[^1];
+		Vector3 heading = _modernPath[^1] - _modernPath[^2];
+		for (int i = 1; i < _modernPath.Count; i++)
+		{
+			float segment = _modernPath[i - 1].DistanceTo(_modernPath[i]);
+			if (distance <= segment)
+			{
+				at = _modernPath[i - 1].Lerp(_modernPath[i], distance / Mathf.Max(segment, 0.001f));
+				heading = _modernPath[i] - _modernPath[i - 1];
+				break;
+			}
+			distance -= segment;
+		}
+		_explorerWalker.Position = at;
+		heading.Y = 0f;
+		if (heading.LengthSquared() > 0.0001f)
+		{
+			float yaw = Mathf.Atan2(-heading.X, -heading.Z);
+			_explorerWalker.Rotation = new Vector3(0f, dt <= 0f ? yaw : Mathf.LerpAngle(_explorerWalker.Rotation.Y, yaw, 1f - Mathf.Exp(-5f * dt)), 0f);
+		}
+
+		// Following from behind and a little to the side, looking up the way he's going.
+		Vector3 forward = -_explorerWalker.GlobalBasis.Z.Normalized();
+		Vector3 side = _explorerWalker.GlobalBasis.X.Normalized();
+		Vector3 eye = _explorerWalker.GlobalPosition - forward * 2.2f + Vector3.Up * 1.5f + side * 0.15f;
+		Vector3 aim = _explorerWalker.GlobalPosition + Vector3.Up * 1.25f + forward * 1.6f;
+		_camera.GlobalPosition = dt <= 0f ? eye : _camera.GlobalPosition.Lerp(eye, 1f - Mathf.Exp(-4f * dt));
+		Basis look = Basis.LookingAt(aim - _camera.GlobalPosition, Vector3.Up);
+		_camera.GlobalBasis = dt <= 0f ? look : _camera.GlobalBasis.Orthonormalized().Slerp(look, 1f - Mathf.Exp(-5f * dt));
+		_camera.HOffset = 0f;
+		_camera.VOffset = 0f;
+	}
+
+	// The real explorer is hidden while the cutscene's stand-in walks in and until the end, here and on the other
+	// machine (with what they carry).
+	private void SetPresentPlayersShown(bool shown)
+	{
+		if (GameState.Instance == null)
+			return;
+		foreach (KeyValuePair<long, PlayerInfo> entry in GameState.Instance.Players)
+		{
+			if (entry.Value.Era != Era.Present || GameState.Instance.GetPlayerNode(entry.Key) is not Player player)
+				continue;
+			player.Visible = shown;
+		}
+	}
 
 	private void SetPastPlayersShown(bool shown)
 	{
@@ -928,6 +1057,8 @@ public partial class CeilingCollapse : Puzzle
 	private void CutToMummy()
 	{
 		_inMummy = true;
+		if (_explorerWalker != null && IsInstanceValid(_explorerWalker))
+			_explorerWalker.QueueFree();
 		_camera.HOffset = 0f;
 		_camera.VOffset = 0f;
 		_crypt = Mummy?.GetParent() as Node3D;
@@ -1157,6 +1288,7 @@ public partial class CeilingCollapse : Puzzle
 	{
 		_cutBack = true;
 		SetPastPlayersShown(true);
+		SetPresentPlayersShown(true);
 		HandMummyToPastPlayer();
 		_camera.HOffset = 0f;
 		_camera.VOffset = 0f;
